@@ -1,10 +1,15 @@
+import { useState } from 'react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { useWallet } from '@solana/wallet-adapter-react'
 import '@solana/wallet-adapter-react-ui/styles.css'
 import { Sprout, ShieldCheck, Coins, ArrowRight } from 'lucide-react'
+import FarmerID from './FarmerID'
 
 function App() {
   const { connected } = useWallet()
+  const [page, setPage] = useState('home')
+
+  if (page === 'farmerid') return <FarmerID onBack={() => setPage('home')} />
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
@@ -31,7 +36,9 @@ function App() {
         </p>
         {connected ? (
           <div className="flex gap-4 mt-4">
-            <button className="bg-green-500 hover:bg-green-400 text-black font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition">
+            <button
+              onClick={() => setPage('farmerid')} 
+              className="bg-green-500 hover:bg-green-400 text-black font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition">
               Create Farmer ID <ArrowRight size={18} />
             </button>
           </div>
