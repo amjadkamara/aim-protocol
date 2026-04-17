@@ -4,12 +4,14 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import '@solana/wallet-adapter-react-ui/styles.css'
 import { Sprout, ShieldCheck, Coins, ArrowRight } from 'lucide-react'
 import FarmerID from './FarmerID'
+import Microloan from './Microloan'
 
 function App() {
   const { connected } = useWallet()
   const [page, setPage] = useState('home')
 
   if (page === 'farmerid') return <FarmerID onBack={() => setPage('home')} />
+  if (page === 'microloan') return <Microloan onBack={() => setPage('home')} />
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
@@ -40,6 +42,11 @@ function App() {
               onClick={() => setPage('farmerid')} 
               className="bg-green-500 hover:bg-green-400 text-black font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition">
               Create Farmer ID <ArrowRight size={18} />
+            </button>
+            <button
+              onClick={() => setPage('microloan')}
+              className="bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition">
+              Request Microloan <ArrowRight size={18} />
             </button>
           </div>
         ) : (
