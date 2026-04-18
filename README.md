@@ -33,7 +33,7 @@ AIM Protocol puts farmers on Solana:
 
 ## Live Demo
 
-Coming soon — deploying to Vercel.
+🌍 **https://aim-protocol.vercel.app/**
 
 ## Built By
 
