@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { useWallet, useConnection } from '@solana/wallet-adapter-react'
-import { SystemProgram, Transaction, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { useWallet } from '@solana/wallet-adapter-react'
 import { ShieldCheck, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useAimProgram } from './useAimProgram'
 
 const CROPS = ['Rice', 'Cassava', 'Maize', 'Groundnut', 'Sweet Potato', 'Sorghum', 'Millet']
 const DISTRICTS = ['Bo', 'Bombali', 'Bonthe', 'Falaba', 'Kailahun', 'Kambia', 'Karene', 'Kenema', 'Koinadugu', 'Kono', 'Moyamba', 'Port Loko', 'Pujehun', 'Tonkolili', 'Western Area Rural', 'Western Area Urban']
 
 export default function FarmerID({ onBack }) {
-  const { publicKey, sendTransaction } = useWallet()
-  const { connection } = useConnection()
+  const { publicKey } = useWallet()
+  const { createFarmerID } = useAimProgram()
 
   const [form, setForm] = useState({
     fullName: '',
@@ -18,6 +18,7 @@ export default function FarmerID({ onBack }) {
   })
   const [status, setStatus] = useState('idle') // idle | loading | success | error
   const [txSignature, setTxSignature] = useState('')
+  const [farmerPublicKey, setFarmerPublicKey] = useState('')
   const [error, setError] = useState('')
 
   const handleChange = (e) => {
@@ -32,19 +33,15 @@ export default function FarmerID({ onBack }) {
     setError('')
 
     try {
-      // Create a small transaction to Solana devnet as proof of identity registration
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: publicKey,
-          lamports: 1000, // tiny amount — just to write to chain
-        })
-      )
+      const result = await createFarmerID({
+        fullName: form.fullName,
+        cropType: form.cropType,
+        district: form.district,
+        farmSize: form.farmSize,
+      })
 
-      const signature = await sendTransaction(transaction, connection)
-      await connection.confirmTransaction(signature, 'confirmed')
-
-      setTxSignature(signature)
+      setTxSignature(result.signature)
+      setFarmerPublicKey(result.farmerPublicKey)
       setStatus('success')
     } catch (err) {
       setError(err.message || 'Transaction failed. Please try again.')
