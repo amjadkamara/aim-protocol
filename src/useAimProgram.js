@@ -55,6 +55,8 @@ export function useAimProgram() {
     const loanKeypair = web3.Keypair.generate()
     const farmerPubkey = new web3.PublicKey(farmerPublicKey)
 
+    const { blockhash } = await connection.getLatestBlockhash('confirmed')
+
     const tx = await program.methods
       .requestLoan(
         new BN(amount),
@@ -68,10 +70,14 @@ export function useAimProgram() {
         systemProgram: web3.SystemProgram.programId,
       })
       .signers([loanKeypair])
-      .rpcAndKeys()
+      .rpc({
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        blockhash,
+      })
 
     return {
-      signature: tx.signature,
+      signature: tx,
       loanPublicKey: loanKeypair.publicKey.toString(),
     }
   }

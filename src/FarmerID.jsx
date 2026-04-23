@@ -6,7 +6,7 @@ import { useAimProgram } from './useAimProgram'
 const CROPS = ['Rice', 'Cassava', 'Maize', 'Groundnut', 'Sweet Potato', 'Sorghum', 'Millet']
 const DISTRICTS = ['Bo', 'Bombali', 'Bonthe', 'Falaba', 'Kailahun', 'Kambia', 'Karene', 'Kenema', 'Koinadugu', 'Kono', 'Moyamba', 'Port Loko', 'Pujehun', 'Tonkolili', 'Western Area Rural', 'Western Area Urban']
 
-export default function FarmerID({ onBack }) {
+export default function FarmerID({ onBack, onSuccess }) {
   const { publicKey } = useWallet()
   const { createFarmerID } = useAimProgram()
 
@@ -43,6 +43,7 @@ export default function FarmerID({ onBack }) {
       setTxSignature(result.signature)
       setFarmerPublicKey(result.farmerPublicKey)
       setStatus('success')
+      if (onSuccess) onSuccess(result.farmerPublicKey)
     } catch (err) {
       setError(err.message || 'Transaction failed. Please try again.')
       setStatus('error')

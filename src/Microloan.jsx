@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useWallet, useConnection } from '@solana/wallet-adapter-react'
-import { SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { useWallet } from '@solana/wallet-adapter-react'
 import { Coins, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useAimProgram } from './useAimProgram'
 
 const LOAN_PURPOSES = [
   'Seeds & Planting Materials',
@@ -21,9 +21,9 @@ const LOAN_AMOUNTS = [
   { label: '0.5 SOL (~$50)', value: 0.5 },
 ]
 
-export default function Microloan({ onBack, farmerName, cropType }) {
-  const { publicKey, sendTransaction } = useWallet()
-  const { connection } = useConnection()
+export default function Microloan({ onBack, farmerName, cropType, farmerPublicKey }) {
+  const { publicKey } = useWallet()
+  const { requestLoan } = useAimProgram()
 
   const [form, setForm] = useState({
     purpose: '',
@@ -46,21 +46,16 @@ export default function Microloan({ onBack, farmerName, cropType }) {
     setError('')
 
     try {
-      const lamports = parseFloat(form.amount) * LAMPORTS_PER_SOL
+      const lamports = parseFloat(form.amount) * 1000000000
 
-      // Simulate loan disbursement — send devnet SOL to farmer's own wallet
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: publicKey,
-          lamports: lamports,
-        })
-      )
+      const result = await requestLoan({
+        farmerPublicKey,
+        amount: lamports,
+        purpose: form.purpose,
+        repaymentWeeks: parseInt(form.repaymentWeeks),
+      })
 
-      const signature = await sendTransaction(transaction, connection)
-      await connection.confirmTransaction(signature, 'confirmed')
-
-      setTxSignature(signature)
+      setTxSignature(result.signature)
       setStatus('success')
     } catch (err) {
       setError(err.message || 'Transaction failed. Please try again.')

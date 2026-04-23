@@ -9,9 +9,10 @@ import Microloan from './Microloan'
 function App() {
   const { connected } = useWallet()
   const [page, setPage] = useState('home')
+  const [farmerPublicKey, setFarmerPublicKey] = useState('')
 
-  if (page === 'farmerid') return <FarmerID onBack={() => setPage('home')} />
-  if (page === 'microloan') return <Microloan onBack={() => setPage('home')} />
+  if (page === 'farmerid') return <FarmerID onBack={() => setPage('home')} onSuccess={(pubkey) => { setFarmerPublicKey(pubkey); }} />
+  if (page === 'microloan') return <Microloan onBack={() => setPage('home')} farmerPublicKey={farmerPublicKey} />
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
