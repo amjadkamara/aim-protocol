@@ -40,6 +40,43 @@ AIM Protocol puts farmers on Solana:
 Amjad Kamara — Founder, Aadios Systems (SL) Ltd.
 Sierra Leone 🇸🇱
 
+## Roadmap — Future Development
+
+AIM Protocol is designed to grow beyond this hackathon into a real financial infrastructure layer for African agriculture.
+
+### Phase 1 — Hackathon MVP (Current)
+
+- Phantom wallet connection
+- On-chain Farmer ID registration via Anchor smart contract
+- Simulated crop-backed microloan disbursement
+- Full transaction verification on Solana Explorer
+
+### Phase 2 — Real System
+
+- One wallet = one Farmer ID (prevent duplicate registrations)
+- Proper error handling and eligibility checks
+- Loan repayment tracking on-chain
+- Credit scoring based on repayment history
+
+### Phase 3 — Live Deployment
+
+- KYC integration — government ID tied to wallet
+- Cooperative verification — community sign-off on farmer identity
+- USDC stablecoin disbursement instead of SOL
+- Oracle integration for crop price feeds and loan sizing
+- Multi-sig loan approval for cooperatives
+
+### Phase 4 — Scale
+
+- Expand beyond Sierra Leone to West Africa
+- NGO and government portal for transparent lending oversight
+- Mobile-first interface for low-bandwidth environments
+- Integration with existing agricultural databases
+
+### Real-World Implementation
+
+AIM Protocol will be deployed as a flagship product of **Aadios Systems (SL) Ltd.**, a registered technology company in Sierra Leone, leveraging existing government and NGO relationships to onboard real farming cooperatives.
+
 ## License
 
 MIT

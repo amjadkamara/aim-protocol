@@ -38,7 +38,7 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const isValid = form.purpose && form.amount
+  const isValid = form.purpose && form.amount && farmerPublicKey
 
   const handleSubmit = async () => {
     if (!publicKey || !isValid) return
@@ -126,6 +126,12 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
           Request a simulated crop-backed microloan disbursed directly to your wallet on Solana.
         </p>
 
+        {!farmerPublicKey && (
+          <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-2">
+            <AlertCircle size={16} />
+            You must create a Farmer ID before requesting a loan. Please go back and register first.
+          </div>
+        )}
         <div className="flex flex-col gap-4">
           <div>
             <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">Loan Purpose</label>
