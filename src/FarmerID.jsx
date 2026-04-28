@@ -87,7 +87,7 @@ export default function FarmerID({ onBack, onSuccess }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col items-center justify-center px-4 py-16">
+    <div className="flex flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-md">
         <button onClick={onBack} className="text-white/40 hover:text-white text-sm mb-8 transition">
           ← Back

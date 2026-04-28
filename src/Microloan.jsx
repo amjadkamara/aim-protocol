@@ -66,7 +66,7 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
   if (status === 'success') {
     const selectedAmount = LOAN_AMOUNTS.find(l => l.value === parseFloat(form.amount))
     return (
-      <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col items-center justify-center px-4 text-center gap-6">
+      <div className="flex flex-col items-center justify-center px-4 py-16 text-center gap-6">
         <CheckCircle2 size={64} className="text-yellow-400" />
         <h2 className="text-3xl font-bold">Loan Approved!</h2>
         <p className="text-white/60 max-w-md">
@@ -113,7 +113,7 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col items-center justify-center px-4 py-16">
+    <div className="flex flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-md">
         <button onClick={onBack} className="text-white/40 hover:text-white text-sm mb-8 transition">
           ← Back
