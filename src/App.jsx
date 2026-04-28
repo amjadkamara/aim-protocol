@@ -14,7 +14,8 @@ function Home({ onNavigate }) {
     <div className="w-full max-w-4xl px-6 md:px-10 flex flex-col gap-16">
 
       {/* HERO */}
-      <section className="flex flex-col items-center text-center py-24 gap-6">
+      <section className="flex flex-col items-center text-center py-16 gap-6 relative">
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-violet-500/20 via-violet-500/5 to-transparent rounded-3xl pointer-events-none" />
         <div className="bg-green-400/10 text-green-400 text-xs md:text-sm px-4 py-1.5 rounded-full border border-green-400/30 tracking-wide">
           Built on Solana • Sierra Leone 🇸🇱
         </div>
@@ -60,8 +61,8 @@ function Home({ onNavigate }) {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="mt-16 pt-16 pb-12 border-t border-white/[0.07]">
-        <div className="flex flex-col items-center text-center mb-8">
+      <section style={{paddingTop: '30px', paddingBottom: '15px', borderTop: '1px solid rgba(255,255,255,0.07)'}}>
+        <div className="flex flex-col items-center text-center" style={{marginBottom: '32px'}}>
           <h2 className="text-2xl md:text-3xl font-semibold">How It Works</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -91,15 +92,15 @@ function Home({ onNavigate }) {
       </section>
 
       {/* FEATURES */}
-      <section className="mt-8 py-20 border-t border-white/[0.07]">
-        <div className="flex flex-col items-center text-center mb-8 pt-4">
+      <section style={{paddingTop: '30px', paddingBottom: '0px', borderTop: '1px solid rgba(255,255,255,0.07)'}}>
+        <div className="flex flex-col items-center text-center" style={{marginBottom: '32px'}}>
           <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Why AIM Protocol</p>
           <h2 className="text-2xl md:text-3xl font-semibold">Built for the field</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             { icon: <ShieldCheck size={22} />, accent: 'green',  title: "On-Chain Identity",    desc: "Permanent farmer identity secured on Solana. Yours forever." },
-            { icon: <Coins size={22} />,       accent: 'yellow', title: "Crop-Backed Loans",    desc: "Access capital backed by your agricultural output — no credit history needed." },
+            { icon: <Coins size={22} />,       accent: 'yellow', title: "Crop-Backed Loans",    desc: "Access capital backed by your agricultural output, no credit history needed." },
             { icon: <Sprout size={22} />,      accent: 'blue',   title: "No Banks",             desc: "Fully decentralized. Just a wallet is enough to participate." },
           ].map((item, i) => {
             const a = {
@@ -109,7 +110,7 @@ function Home({ onNavigate }) {
             }[item.accent]
             return (
               <div key={i} className={`relative bg-white/[0.04] border ${a.border} rounded-2xl p-6 flex items-start gap-4 hover:bg-white/[0.07] transition`}>
-                <div className={`absolute top-0 left-6 right-6 h-px bg-gradient-to-r ${a.top} to-transparent opacity-50`} />
+                <div className={`absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r ${a.top} to-transparent opacity-50`} />
                 <div className={`shrink-0 w-12 h-12 rounded-xl ${a.bg} flex items-center justify-center ${a.icon}`}>
                   {item.icon}
                 </div>
@@ -124,7 +125,7 @@ function Home({ onNavigate }) {
       </section>
 
       {/* CTA */}
-      <section className="mt-8 py-20 pb-24">
+      <section style={{paddingBottom: '96px'}}>
         <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-white/[0.04] px-8 md:px-14 py-14 text-center">
           <div className="absolute inset-0 -z-10 bg-gradient-to-br from-green-500/10 via-transparent to-violet-500/10 pointer-events-none" />
           <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-green-400/40 to-transparent" />
