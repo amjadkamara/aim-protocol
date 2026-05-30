@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { ShieldCheck, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { useAimProgram } from './useAimProgram'
+import { useAimProgram, getFarmerPDA } from './useAimProgram'
 
 const CROPS = ['Rice', 'Cassava', 'Maize', 'Groundnut', 'Sweet Potato', 'Sorghum', 'Millet']
 const DISTRICTS = ['Bo', 'Bombali', 'Bonthe', 'Falaba', 'Kailahun', 'Kambia', 'Karene', 'Kenema', 'Koinadugu', 'Kono', 'Moyamba', 'Port Loko', 'Pujehun', 'Tonkolili', 'Western Area Rural', 'Western Area Urban']
 
 export default function FarmerID({ onBack, onSuccess }) {
   const { publicKey } = useWallet()
-  const { createFarmerID } = useAimProgram()
+  const { createFarmerID, fetchFarmer } = useAimProgram()
 
   const [form, setForm] = useState({
     fullName: '',
@@ -16,10 +16,21 @@ export default function FarmerID({ onBack, onSuccess }) {
     district: '',
     farmSize: '',
   })
-  const [status, setStatus] = useState('idle') // idle | loading | success | error
+  const [status, setStatus] = useState('idle') // idle | loading | success | error | already_registered
   const [txSignature, setTxSignature] = useState('')
-  const [farmerPublicKey, setFarmerPublicKey] = useState('')
   const [error, setError] = useState('')
+  const [existingFarmer, setExistingFarmer] = useState(null)
+
+  // Check on load if this wallet already has a Farmer ID
+  useEffect(() => {
+    if (!publicKey) return
+    fetchFarmer().then((farmer) => {
+      if (farmer) {
+        setExistingFarmer(farmer)
+        setStatus('already_registered')
+      }
+    })
+  }, [publicKey])
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -41,7 +52,6 @@ export default function FarmerID({ onBack, onSuccess }) {
       })
 
       setTxSignature(result.signature)
-      setFarmerPublicKey(result.farmerPublicKey)
       setStatus('success')
       if (onSuccess) onSuccess(result.farmerPublicKey)
     } catch (err) {
@@ -50,6 +60,40 @@ export default function FarmerID({ onBack, onSuccess }) {
     }
   }
 
+  // Already registered — show their existing profile
+  if (status === 'already_registered' && existingFarmer) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col items-center justify-center px-4 text-center gap-6">
+        <ShieldCheck size={64} className="text-green-400" />
+        <h2 className="text-3xl font-bold">Already Registered</h2>
+        <p className="text-white/60 max-w-md">
+          This wallet already has a Farmer ID on-chain. One wallet = one farmer identity.
+        </p>
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-w-md w-full text-left">
+          <p className="text-white/40 text-xs mb-1">FARMER NAME</p>
+          <p className="font-semibold">{existingFarmer.fullName}</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">CROP TYPE</p>
+          <p className="font-semibold">{existingFarmer.cropType}</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">DISTRICT</p>
+          <p className="font-semibold">{existingFarmer.district}</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">FARM SIZE</p>
+          <p className="font-semibold">{existingFarmer.farmSize} acres</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">FARMER ID (PDA)</p>
+          <p className="font-mono text-xs text-white/50 break-all">
+            {getFarmerPDA(publicKey).toString()}
+          </p>
+        </div>
+        <button
+          onClick={onBack}
+          className="text-white/40 hover:text-white text-sm transition"
+        >
+          ← Back to home
+        </button>
+      </div>
+    )
+  }
+
+  // Success screen after fresh registration
   if (status === 'success') {
     return (
       <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col items-center justify-center px-4 text-center gap-6">
@@ -67,9 +111,13 @@ export default function FarmerID({ onBack, onSuccess }) {
           <p className="font-semibold">{form.district}</p>
           <p className="text-white/40 text-xs mt-3 mb-1">FARM SIZE</p>
           <p className="font-semibold">{form.farmSize} acres</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">FARMER ID (PDA)</p>
+          <p className="font-mono text-xs text-white/50 break-all">
+            {publicKey && getFarmerPDA(publicKey).toString()}
+          </p>
         </div>
         
-           <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
+          <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
           target="_blank"
           rel="noopener noreferrer"
           className="bg-green-500 hover:bg-green-400 text-black font-semibold px-6 py-3 rounded-lg transition"

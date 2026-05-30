@@ -5,6 +5,22 @@ import idl from './idl/aim_program.json'
 
 const PROGRAM_ID = new web3.PublicKey('AhHHJTu5vodDYE2yLNet2bE6jad9F3xSfbLQdUmykKqB')
 
+export function getFarmerPDA(walletPublicKey) {
+  const [pda] = web3.PublicKey.findProgramAddressSync(
+    [Buffer.from('farmer'), walletPublicKey.toBuffer()],
+    PROGRAM_ID
+  )
+  return pda
+}
+
+export function getLoanPDA(walletPublicKey) {
+  const [pda] = web3.PublicKey.findProgramAddressSync(
+    [Buffer.from('loan'), walletPublicKey.toBuffer()],
+    PROGRAM_ID
+  )
+  return pda
+}
+
 export function useAimProgram() {
   const { connection } = useConnection()
   const wallet = useWallet()
@@ -20,9 +36,7 @@ export function useAimProgram() {
   const createFarmerID = async ({ fullName, cropType, district, farmSize }) => {
     if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
 
-    const farmerKeypair = web3.Keypair.generate()
-    
-    const { blockhash } = await connection.getLatestBlockhash('confirmed')
+    const farmerPDA = getFarmerPDA(wallet.publicKey)
 
     const tx = await program.methods
       .createFarmerId(
@@ -32,30 +46,26 @@ export function useAimProgram() {
         parseFloat(farmSize)
       )
       .accounts({
-        farmer: farmerKeypair.publicKey,
+        farmer: farmerPDA,
         owner: wallet.publicKey,
         systemProgram: web3.SystemProgram.programId,
       })
-      .signers([farmerKeypair])
       .rpc({
         skipPreflight: false,
         preflightCommitment: 'confirmed',
-        blockhash,
       })
 
     return {
       signature: tx,
-      farmerPublicKey: farmerKeypair.publicKey.toString(),
+      farmerPublicKey: farmerPDA.toString(),
     }
   }
 
-  const requestLoan = async ({ farmerPublicKey, amount, purpose, repaymentWeeks }) => {
+  const requestLoan = async ({ amount, purpose, repaymentWeeks }) => {
     if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
 
-    const loanKeypair = web3.Keypair.generate()
-    const farmerPubkey = new web3.PublicKey(farmerPublicKey)
-
-    const { blockhash } = await connection.getLatestBlockhash('confirmed')
+    const farmerPDA = getFarmerPDA(wallet.publicKey)
+    const loanPDA = getLoanPDA(wallet.publicKey)
 
     const tx = await program.methods
       .requestLoan(
@@ -64,23 +74,62 @@ export function useAimProgram() {
         repaymentWeeks
       )
       .accounts({
-        loan: loanKeypair.publicKey,
-        farmer: farmerPubkey,
+        loan: loanPDA,
+        farmer: farmerPDA,
         owner: wallet.publicKey,
         systemProgram: web3.SystemProgram.programId,
       })
-      .signers([loanKeypair])
       .rpc({
         skipPreflight: false,
         preflightCommitment: 'confirmed',
-        blockhash,
       })
 
     return {
       signature: tx,
-      loanPublicKey: loanKeypair.publicKey.toString(),
+      loanPublicKey: loanPDA.toString(),
     }
   }
 
-  return { program, createFarmerID, requestLoan }
+  const repayLoan = async () => {
+    if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
+
+    const farmerPDA = getFarmerPDA(wallet.publicKey)
+    const loanPDA = getLoanPDA(wallet.publicKey)
+
+    const tx = await program.methods
+      .repayLoan()
+      .accounts({
+        loan: loanPDA,
+        farmer: farmerPDA,
+        owner: wallet.publicKey,
+      })
+      .rpc({
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      })
+
+    return { signature: tx }
+  }
+
+  const fetchFarmer = async () => {
+    if (!program || !wallet.publicKey) return null
+    const farmerPDA = getFarmerPDA(wallet.publicKey)
+    try {
+      return await program.account.farmerAccount.fetch(farmerPDA)
+    } catch {
+      return null
+    }
+  }
+
+  const fetchLoan = async () => {
+    if (!program || !wallet.publicKey) return null
+    const loanPDA = getLoanPDA(wallet.publicKey)
+    try {
+      return await program.account.loanAccount.fetch(loanPDA)
+    } catch {
+      return null
+    }
+  }
+
+  return { program, createFarmerID, requestLoan, repayLoan, fetchFarmer, fetchLoan }
 }

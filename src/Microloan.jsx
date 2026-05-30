@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Coins, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAimProgram } from './useAimProgram'
@@ -21,9 +21,9 @@ const LOAN_AMOUNTS = [
   { label: '0.5 SOL (~$50)', value: 0.5 },
 ]
 
-export default function Microloan({ onBack, farmerName, cropType, farmerPublicKey }) {
+export default function Microloan({ onBack, farmerName, cropType }) {
   const { publicKey } = useWallet()
-  const { requestLoan } = useAimProgram()
+  const { requestLoan, fetchFarmer } = useAimProgram()
 
   const [form, setForm] = useState({
     purpose: '',
@@ -33,12 +33,24 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
   const [status, setStatus] = useState('idle')
   const [txSignature, setTxSignature] = useState('')
   const [error, setError] = useState('')
+  const [hasFarmerID, setHasFarmerID] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  // Check if wallet has a Farmer ID before allowing loan request
+  useEffect(() => {
+    if (!publicKey) return
+    setChecking(true)
+    fetchFarmer().then((farmer) => {
+      setHasFarmerID(!!farmer)
+      setChecking(false)
+    })
+  }, [publicKey])
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const isValid = form.purpose && form.amount && farmerPublicKey
+  const isValid = form.purpose && form.amount && hasFarmerID
 
   const handleSubmit = async () => {
     if (!publicKey || !isValid) return
@@ -49,7 +61,6 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
       const lamports = parseFloat(form.amount) * 1000000000
 
       const result = await requestLoan({
-        farmerPublicKey,
         amount: lamports,
         purpose: form.purpose,
         repaymentWeeks: parseInt(form.repaymentWeeks),
@@ -95,7 +106,7 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
         </div>
 
         
-          <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
+         <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
           target="_blank"
           rel="noopener noreferrer"
           className="bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-6 py-3 rounded-lg transition"
@@ -126,12 +137,20 @@ export default function Microloan({ onBack, farmerName, cropType, farmerPublicKe
           Request a simulated crop-backed microloan disbursed directly to your wallet on Solana.
         </p>
 
-        {!farmerPublicKey && (
-          <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-2">
+        {checking && (
+          <div className="flex items-center gap-2 text-white/40 text-sm mb-4">
+            <Loader2 size={16} className="animate-spin" />
+            Checking Farmer ID...
+          </div>
+        )}
+
+        {!checking && !hasFarmerID && (
+          <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
             <AlertCircle size={16} />
             You must create a Farmer ID before requesting a loan. Please go back and register first.
           </div>
         )}
+
         <div className="flex flex-col gap-4">
           <div>
             <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">Loan Purpose</label>

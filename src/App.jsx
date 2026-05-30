@@ -155,16 +155,15 @@ function Home({ onNavigate }) {
 
 function App() {
   const [page, setPage] = useState('home')
-  const [farmerPublicKey, setFarmerPublicKey] = useState('')
 
   return (
     <Layout>
       {page === 'home' && <Home onNavigate={setPage} />}
       {page === 'farmerid' && (
-        <FarmerID onBack={() => setPage('home')} onSuccess={(pubkey) => setFarmerPublicKey(pubkey)} />
+        <FarmerID onBack={() => setPage('home')} onSuccess={() => setPage('home')} />
       )}
       {page === 'microloan' && (
-        <Microloan onBack={() => setPage('home')} farmerPublicKey={farmerPublicKey} />
+        <Microloan onBack={() => setPage('home')} />
       )}
     </Layout>
   )
