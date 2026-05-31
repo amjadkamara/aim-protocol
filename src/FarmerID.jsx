@@ -53,7 +53,7 @@ export default function FarmerID({ onBack, onSuccess }) {
 
       setTxSignature(result.signature)
       setStatus('success')
-      if (onSuccess) onSuccess(result.farmerPublicKey)
+      if (onSuccess) onSuccess()
     } catch (err) {
       setError(err.message || 'Transaction failed. Please try again.')
       setStatus('error')

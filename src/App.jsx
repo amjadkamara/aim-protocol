@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
-import { ShieldCheck, Coins, Sprout, ArrowRight, Wallet, UserCheck, CreditCard } from 'lucide-react'
+import { ShieldCheck, Coins, Sprout, ArrowRight, Wallet, UserCheck, CreditCard, LayoutDashboard } from 'lucide-react'
 import Layout from './Layout'
 import FarmerID from './FarmerID'
 import Microloan from './Microloan'
 import RepayLoan from './RepayLoan'
+import Dashboard from './Dashboard'
 
 function Home({ onNavigate }) {
   const { connected } = useWallet()
@@ -30,10 +31,14 @@ function Home({ onNavigate }) {
         </p>
         <div className="pt-2">
           {connected ? (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={() => onNavigate('farmerid')}
+            <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-center">
+              <button onClick={() => onNavigate('dashboard')}
                 className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
-                Create Farmer ID <ArrowRight size={16} />
+                <LayoutDashboard size={16} /> My Dashboard
+              </button>
+              <button onClick={() => onNavigate('farmerid')}
+                className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <ShieldCheck size={16} /> Create Farmer ID
               </button>
               <button onClick={() => onNavigate('microloan')}
                 className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition">
@@ -144,9 +149,9 @@ function Home({ onNavigate }) {
             Join the next generation of decentralized agriculture finance.
           </p>
           {connected ? (
-            <button onClick={() => onNavigate('farmerid')}
+            <button onClick={() => onNavigate('dashboard')}
               className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-10 py-3.5 rounded-xl transition">
-              Get Started →
+              Go to Dashboard →
             </button>
           ) : (
             <WalletMultiButton />
@@ -165,7 +170,10 @@ function App() {
     <Layout>
       {page === 'home' && <Home onNavigate={setPage} />}
       {page === 'farmerid' && (
-        <FarmerID onBack={() => setPage('home')} onSuccess={() => setPage('home')} />
+        <FarmerID
+          onBack={() => setPage('home')}
+          onSuccess={() => setPage('dashboard')}
+        />
       )}
       {page === 'microloan' && (
         <Microloan
@@ -176,7 +184,14 @@ function App() {
       {page === 'repayeloan' && (
         <RepayLoan
           onBack={() => setPage('home')}
-          onRepaid={() => setPage('home')}
+          onRepaid={() => setPage('dashboard')}
+        />
+      )}
+      {page === 'dashboard' && (
+        <Dashboard
+          onBack={() => setPage('home')}
+          onRequestLoan={() => setPage('microloan')}
+          onRepayLoan={() => setPage('repayeloan')}
         />
       )}
     </Layout>
