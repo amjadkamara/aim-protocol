@@ -8,6 +8,7 @@ import FarmerID from './FarmerID'
 import Microloan from './Microloan'
 import RepayLoan from './RepayLoan'
 import Dashboard from './Dashboard'
+import LoanHistory from './LoanHistory'
 
 function Home({ onNavigate }) {
   const { connected } = useWallet()
@@ -192,7 +193,11 @@ function App() {
           onBack={() => setPage('home')}
           onRequestLoan={() => setPage('microloan')}
           onRepayLoan={() => setPage('repayeloan')}
+          onViewHistory={() => setPage('loanhistory')}
         />
+      )}
+      {page === 'loanhistory' && (
+        <LoanHistory onBack={() => setPage('dashboard')} />
       )}
     </Layout>
   )

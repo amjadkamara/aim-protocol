@@ -3,7 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import {
   ShieldCheck, Coins, Loader2, AlertCircle,
   Clock, AlertTriangle, CheckCircle2, MapPin,
-  Sprout, Calendar, Hash
+  Sprout, Calendar, Hash, History
 } from 'lucide-react'
 import { useAimProgram, getFarmerPDA } from './useAimProgram'
 
@@ -27,7 +27,7 @@ function getDaysInfo(loan) {
   return { diffDays, overdue: Date.now() > deadline, deadline }
 }
 
-export default function Dashboard({ onBack, onRequestLoan, onRepayLoan }) {
+export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHistory }) {
   const { publicKey } = useWallet()
   const { fetchFarmer, fetchLoan, closeLoan } = useAimProgram()
 
@@ -138,20 +138,17 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan }) {
             <span className="text-yellow-400 text-xs font-semibold uppercase tracking-widest">Loan Status</span>
           </div>
 
-          {/* No loan ever */}
           {!loan && (
             <div className="flex flex-col items-center text-center py-4 gap-3">
-              <p className="text-white/50 text-sm">No loan history. Your account is ready to borrow.</p>
+              <p className="text-white/50 text-sm">No active loan. Your account is ready to borrow.</p>
               <span className="bg-white/10 text-white/40 text-xs font-semibold px-3 py-1 rounded-full border border-white/10">
                 ○ NO LOAN
               </span>
             </div>
           )}
 
-          {/* Has loan */}
           {loan && (
             <>
-              {/* Status banner */}
               {loanStatus === 'active' && (
                 <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
                   <Clock size={15} />
@@ -248,6 +245,12 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan }) {
               <CheckCircle2 size={18} /> Repay Loan in Full →
             </button>
           )}
+          <button
+            onClick={onViewHistory}
+            className="w-full bg-white/[0.04] hover:bg-white/10 border border-white/10 text-white/60 hover:text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
+          >
+            <History size={18} /> View Loan History →
+          </button>
         </div>
 
       </div>
