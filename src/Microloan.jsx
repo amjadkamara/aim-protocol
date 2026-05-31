@@ -153,14 +153,16 @@ export default function Microloan({ onBack, onViewLoan }) {
         )}
 
         {!checking && hasFarmerID && hasActiveLoan && (
-          <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
-            <AlertCircle size={16} />
-            You already have an active loan. Repay it before requesting a new one.
+          <div className="flex flex-col gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>You already have an active loan. Repay it before requesting a new one.</span>
+            </div>
             <button
               onClick={onViewLoan}
-              className="ml-auto text-yellow-400 underline text-xs whitespace-nowrap"
+              className="text-yellow-400 underline text-xs text-left font-semibold"
             >
-              View loan →
+              View loan status & repay →
             </button>
           </div>
         )}

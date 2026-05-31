@@ -19,7 +19,7 @@ function Home({ onNavigate }) {
       <section className="flex flex-col items-center text-center py-16 gap-6 relative">
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-violet-500/20 via-violet-500/5 to-transparent rounded-3xl pointer-events-none" />
         <div className="bg-green-400/10 text-green-400 text-xs md:text-sm px-4 py-1.5 rounded-full border border-green-400/30 tracking-wide">
-          Built on Solana • Sierra Leone 🇸🇱
+          Built on Solana • Africa 🌍
         </div>
         <h1 className="text-4xl md:text-6xl font-bold leading-tight max-w-3xl">
           Financial Access for
@@ -31,22 +31,22 @@ function Home({ onNavigate }) {
         </p>
         <div className="pt-2">
           {connected ? (
-            <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-center">
+            <div className="flex flex-col w-full sm:flex-row sm:flex-wrap gap-3 justify-center">
               <button onClick={() => onNavigate('dashboard')}
-                className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
                 <LayoutDashboard size={16} /> My Dashboard
               </button>
               <button onClick={() => onNavigate('farmerid')}
-                className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <ShieldCheck size={16} /> Create Farmer ID
               </button>
               <button onClick={() => onNavigate('microloan')}
-                className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition">
-                Request Loan
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <Coins size={16} /> Request Loan
               </button>
               <button onClick={() => onNavigate('repayeloan')}
-                className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition">
-                Repay Loan
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <ArrowRight size={16} /> Repay Loan
               </button>
             </div>
           ) : (
