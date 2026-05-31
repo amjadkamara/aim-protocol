@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Coins, Loader2, CheckCircle2, AlertCircle, Clock, AlertTriangle } from 'lucide-react'
-import { useAimProgram } from './useAimProgram'
+import { useAimProgram, parseAnchorError } from './useAimProgram'
 
 function getLoanStatus(loan) {
   if (!loan) return null
@@ -56,7 +56,7 @@ export default function RepayLoan({ onBack, onRepaid }) {
       setStatus('success')
       if (onRepaid) onRepaid()
     } catch (err) {
-      setError(err.message || 'Transaction failed. Please try again.')
+      setError(parseAnchorError(err))
       setStatus('error')
     }
   }

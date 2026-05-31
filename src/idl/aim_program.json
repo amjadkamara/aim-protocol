@@ -8,6 +8,48 @@
   },
   "instructions": [
     {
+      "name": "close_loan",
+      "discriminator": [
+        96,
+        114,
+        111,
+        204,
+        149,
+        228,
+        235,
+        124
+      ],
+      "accounts": [
+        {
+          "name": "loan",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "create_farmer_id",
       "discriminator": [
         29,
@@ -131,6 +173,7 @@
         },
         {
           "name": "owner",
+          "writable": true,
           "signer": true,
           "relations": [
             "farmer"
@@ -263,6 +306,11 @@
       "code": 6001,
       "name": "LoanAlreadyRepaid",
       "msg": "Loan has already been repaid"
+    },
+    {
+      "code": 6002,
+      "name": "LoanNotRepaid",
+      "msg": "Loan has not been repaid yet"
     }
   ],
   "types": [

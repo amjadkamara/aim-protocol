@@ -121,6 +121,19 @@ export function useAimProgram() {
     }
   }
 
+  const closeLoan = async () => {
+    if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
+    const loanPDA = getLoanPDA(wallet.publicKey)
+    const tx = await program.methods
+      .closeLoan()
+      .accounts({
+        loan: loanPDA,
+        owner: wallet.publicKey,
+      })
+      .rpc()
+    return { signature: tx }
+  }
+
   const fetchLoan = async () => {
     if (!program || !wallet.publicKey) return null
     const loanPDA = getLoanPDA(wallet.publicKey)
@@ -131,5 +144,35 @@ export function useAimProgram() {
     }
   }
 
-  return { program, createFarmerID, requestLoan, repayLoan, fetchFarmer, fetchLoan }
+  return { program, createFarmerID, requestLoan, repayLoan, closeLoan, fetchFarmer, fetchLoan }
+}
+
+export function parseAnchorError(err) {
+  const msg = err?.message || ''
+
+  if (msg.includes('User rejected') || msg.includes('user rejected'))
+    return 'Transaction cancelled. Please try again when ready.'
+
+  if (msg.includes('insufficient funds') || msg.includes('Insufficient funds'))
+    return 'Not enough SOL in your wallet to complete this transaction.'
+
+  if (msg.includes('ActiveLoanExists') || msg.includes('0x1770'))
+    return 'You already have an active loan. Repay it before requesting a new one.'
+
+  if (msg.includes('LoanAlreadyRepaid') || msg.includes('0x1771'))
+    return 'This loan has already been repaid.'
+
+  if (msg.includes('AccountNotInitialized') || msg.includes('3012'))
+    return 'Account not found. Please register your Farmer ID first.'
+
+  if (msg.includes('already in use') || msg.includes('0x0'))
+    return 'This account already exists on-chain.'
+
+  if (msg.includes('blockhash') || msg.includes('BlockhashNotFound'))
+    return 'Network timeout. Please try again.'
+
+  if (msg.includes('simulation failed') || msg.includes('Simulation failed'))
+    return 'Transaction simulation failed. Check your wallet is on devnet and has enough SOL.'
+
+  return 'Transaction failed. Please try again.'
 }

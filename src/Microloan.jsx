@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Coins, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { useAimProgram } from './useAimProgram'
+import { useAimProgram, parseAnchorError } from './useAimProgram'
 
 const LOAN_PURPOSES = [
   'Seeds & Planting Materials',
@@ -70,7 +70,7 @@ export default function Microloan({ onBack, onViewLoan }) {
       setTxSignature(result.signature)
       setStatus('success')
     } catch (err) {
-      setError(err.message || 'Transaction failed. Please try again.')
+      setError(parseAnchorError(err))
       setStatus('error')
     }
   }

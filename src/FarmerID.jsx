@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { ShieldCheck, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { useAimProgram, getFarmerPDA } from './useAimProgram'
+import { useAimProgram, getFarmerPDA, parseAnchorError } from './useAimProgram'
 
 const CROPS = ['Rice', 'Cassava', 'Maize', 'Groundnut', 'Sweet Potato', 'Sorghum', 'Millet']
 const DISTRICTS = ['Bo', 'Bombali', 'Bonthe', 'Falaba', 'Kailahun', 'Kambia', 'Karene', 'Kenema', 'Koinadugu', 'Kono', 'Moyamba', 'Port Loko', 'Pujehun', 'Tonkolili', 'Western Area Rural', 'Western Area Urban']
@@ -55,7 +55,7 @@ export default function FarmerID({ onBack, onSuccess }) {
       setStatus('success')
       if (onSuccess) onSuccess()
     } catch (err) {
-      setError(err.message || 'Transaction failed. Please try again.')
+      setError(parseAnchorError(err))
       setStatus('error')
     }
   }

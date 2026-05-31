@@ -29,7 +29,7 @@ function getDaysInfo(loan) {
 
 export default function Dashboard({ onBack, onRequestLoan, onRepayLoan }) {
   const { publicKey } = useWallet()
-  const { fetchFarmer, fetchLoan } = useAimProgram()
+  const { fetchFarmer, fetchLoan, closeLoan } = useAimProgram()
 
   const [farmer, setFarmer] = useState(null)
   const [loan, setLoan] = useState(null)
@@ -217,6 +217,21 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan }) {
 
         {/* ── Actions ── */}
         <div className="flex flex-col gap-3">
+          {loan && loanStatus === 'repaid' && (
+            <button
+              onClick={async () => {
+                try {
+                  await closeLoan()
+                  setLoan(null)
+                } catch(e) {
+                  console.log(e.message)
+                }
+              }}
+              className="w-full bg-white/10 hover:bg-white/20 text-white/60 text-sm font-semibold py-2 rounded-lg transition"
+            >
+              Clear repaid loan account to re-borrow →
+            </button>
+          )}
           {(!loan || loanStatus === 'repaid') && (
             <button
               onClick={onRequestLoan}
