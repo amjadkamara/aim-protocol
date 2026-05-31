@@ -21,9 +21,9 @@ const LOAN_AMOUNTS = [
   { label: '0.5 SOL (~$50)', value: 0.5 },
 ]
 
-export default function Microloan({ onBack, farmerName, cropType }) {
+export default function Microloan({ onBack, onViewLoan }) {
   const { publicKey } = useWallet()
-  const { requestLoan, fetchFarmer } = useAimProgram()
+  const { requestLoan, fetchFarmer, fetchLoan } = useAimProgram()
 
   const [form, setForm] = useState({
     purpose: '',
@@ -34,14 +34,15 @@ export default function Microloan({ onBack, farmerName, cropType }) {
   const [txSignature, setTxSignature] = useState('')
   const [error, setError] = useState('')
   const [hasFarmerID, setHasFarmerID] = useState(false)
+  const [hasActiveLoan, setHasActiveLoan] = useState(false)
   const [checking, setChecking] = useState(true)
 
-  // Check if wallet has a Farmer ID before allowing loan request
   useEffect(() => {
     if (!publicKey) return
     setChecking(true)
-    fetchFarmer().then((farmer) => {
+    Promise.all([fetchFarmer(), fetchLoan()]).then(([farmer, loan]) => {
       setHasFarmerID(!!farmer)
+      setHasActiveLoan(!!loan && !loan.isRepaid)
       setChecking(false)
     })
   }, [publicKey])
@@ -50,7 +51,7 @@ export default function Microloan({ onBack, farmerName, cropType }) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const isValid = form.purpose && form.amount && hasFarmerID
+  const isValid = form.purpose && form.amount && hasFarmerID && !hasActiveLoan
 
   const handleSubmit = async () => {
     if (!publicKey || !isValid) return
@@ -58,7 +59,7 @@ export default function Microloan({ onBack, farmerName, cropType }) {
     setError('')
 
     try {
-      const lamports = parseFloat(form.amount) * 1000000000
+      const lamports = parseFloat(form.amount) * 1_000_000_000
 
       const result = await requestLoan({
         amount: lamports,
@@ -85,12 +86,6 @@ export default function Microloan({ onBack, farmerName, cropType }) {
         </p>
 
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-w-md w-full text-left">
-          {farmerName && (
-            <>
-              <p className="text-white/40 text-xs mb-1">FARMER</p>
-              <p className="font-semibold mb-3">{farmerName}</p>
-            </>
-          )}
           <p className="text-white/40 text-xs mb-1">LOAN AMOUNT</p>
           <p className="font-semibold text-yellow-400 text-xl mb-3">{selectedAmount?.label}</p>
           <p className="text-white/40 text-xs mb-1">PURPOSE</p>
@@ -113,6 +108,12 @@ export default function Microloan({ onBack, farmerName, cropType }) {
         >
           View Loan Transaction ↗
         </a>
+        <button
+          onClick={onViewLoan}
+          className="bg-white/10 hover:bg-white/20 text-white font-semibold px-6 py-3 rounded-lg transition"
+        >
+          View Loan Status & Repay →
+        </button>
         <button
           onClick={onBack}
           className="text-white/40 hover:text-white text-sm transition"
@@ -140,7 +141,7 @@ export default function Microloan({ onBack, farmerName, cropType }) {
         {checking && (
           <div className="flex items-center gap-2 text-white/40 text-sm mb-4">
             <Loader2 size={16} className="animate-spin" />
-            Checking Farmer ID...
+            Checking account status...
           </div>
         )}
 
@@ -148,6 +149,19 @@ export default function Microloan({ onBack, farmerName, cropType }) {
           <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
             <AlertCircle size={16} />
             You must create a Farmer ID before requesting a loan. Please go back and register first.
+          </div>
+        )}
+
+        {!checking && hasFarmerID && hasActiveLoan && (
+          <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
+            <AlertCircle size={16} />
+            You already have an active loan. Repay it before requesting a new one.
+            <button
+              onClick={onViewLoan}
+              className="ml-auto text-yellow-400 underline text-xs whitespace-nowrap"
+            >
+              View loan →
+            </button>
           </div>
         )}
 

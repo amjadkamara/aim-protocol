@@ -6,6 +6,7 @@ import { ShieldCheck, Coins, Sprout, ArrowRight, Wallet, UserCheck, CreditCard }
 import Layout from './Layout'
 import FarmerID from './FarmerID'
 import Microloan from './Microloan'
+import RepayLoan from './RepayLoan'
 
 function Home({ onNavigate }) {
   const { connected } = useWallet()
@@ -37,6 +38,10 @@ function Home({ onNavigate }) {
               <button onClick={() => onNavigate('microloan')}
                 className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition">
                 Request Loan
+              </button>
+              <button onClick={() => onNavigate('repayeloan')}
+                className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition">
+                Repay Loan
               </button>
             </div>
           ) : (
@@ -163,7 +168,16 @@ function App() {
         <FarmerID onBack={() => setPage('home')} onSuccess={() => setPage('home')} />
       )}
       {page === 'microloan' && (
-        <Microloan onBack={() => setPage('home')} />
+        <Microloan
+          onBack={() => setPage('home')}
+          onViewLoan={() => setPage('repayeloan')}
+        />
+      )}
+      {page === 'repayeloan' && (
+        <RepayLoan
+          onBack={() => setPage('home')}
+          onRepaid={() => setPage('home')}
+        />
       )}
     </Layout>
   )
