@@ -9,6 +9,7 @@ import Microloan from './Microloan'
 import RepayLoan from './RepayLoan'
 import Dashboard from './Dashboard'
 import LoanHistory from './LoanHistory'
+import AdminDashboard from './AdminDashboard'
 
 function Home({ onNavigate }) {
   const { connected } = useWallet()
@@ -48,6 +49,10 @@ function Home({ onNavigate }) {
               <button onClick={() => onNavigate('repayeloan')}
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <ArrowRight size={16} /> Repay Loan
+              </button>
+              <button onClick={() => onNavigate('admin')}
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <LayoutDashboard size={16} /> Admin
               </button>
             </div>
           ) : (
@@ -198,6 +203,9 @@ function App() {
       )}
       {page === 'loanhistory' && (
         <LoanHistory onBack={() => setPage('dashboard')} />
+      )}
+      {page === 'admin' && (
+        <AdminDashboard onBack={() => setPage('home')} />
       )}
     </Layout>
   )
