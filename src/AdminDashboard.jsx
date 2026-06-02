@@ -8,7 +8,7 @@ import {
   ChevronUp, ChevronDown
 } from 'lucide-react'
 
-const ADMIN_WALLETS = [Cz3GvsRaBsuAHoRiJd5sV6ZTAkE8TsFJAyuYWEtV7Qu2]
+const ADMIN_WALLETS = ['Cz3GvsRaBsuAHoRiJd5sV6ZTAkE8TsFJAyuYWEtV7Qu2']
 const EXPLORER = (address) =>
   `https://explorer.solana.com/address/${address}?cluster=devnet`
 
