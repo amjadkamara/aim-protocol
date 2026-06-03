@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
-import { ShieldCheck, Coins, Sprout, ArrowRight, Wallet, UserCheck, CreditCard, LayoutDashboard } from 'lucide-react'
+import { ShieldCheck, Coins, Sprout, ArrowRight, Wallet, UserCheck, CreditCard, LayoutDashboard, Search } from 'lucide-react'
 import Layout from './Layout'
 import FarmerID from './FarmerID'
 import Microloan from './Microloan'
@@ -10,6 +10,7 @@ import RepayLoan from './RepayLoan'
 import Dashboard from './Dashboard'
 import LoanHistory from './LoanHistory'
 import AdminDashboard from './AdminDashboard'
+import FarmerProfile from './FarmerProfile'
 
 function Home({ onNavigate }) {
   const { connected } = useWallet()
@@ -49,6 +50,10 @@ function Home({ onNavigate }) {
               <button onClick={() => onNavigate('repayeloan')}
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <ArrowRight size={16} /> Repay Loan
+              </button>
+              <button onClick={() => onNavigate('farmerprofile')}
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <Search size={16} /> Lookup Farmer
               </button>
               <button onClick={() => onNavigate('admin')}
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
@@ -203,6 +208,9 @@ function App() {
       )}
       {page === 'loanhistory' && (
         <LoanHistory onBack={() => setPage('dashboard')} />
+      )}
+      {page === 'farmerprofile' && (
+        <FarmerProfile onBack={() => setPage('home')} />
       )}
       {page === 'admin' && (
         <AdminDashboard onBack={() => setPage('home')} />
