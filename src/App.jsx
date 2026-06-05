@@ -5,7 +5,7 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 import {
   ShieldCheck, Coins, Sprout, ArrowRight, Wallet,
   UserCheck, CreditCard, LayoutDashboard, Search,
-  MapPin, Loader2
+  MapPin, Loader2, Store
 } from 'lucide-react'
 import Layout from './Layout'
 import FarmerID from './FarmerID'
@@ -15,6 +15,7 @@ import Dashboard from './Dashboard'
 import LoanHistory from './LoanHistory'
 import AdminDashboard from './AdminDashboard'
 import FarmerProfile from './FarmerProfile'
+import LoanMarketplace from './LoanMarketplace'
 import { useAimProgram } from './useAimProgram'
 
 function Home({ onNavigate }) {
@@ -125,6 +126,10 @@ function Home({ onNavigate }) {
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <ArrowRight size={16} /> Repay Loan
               </button>
+              <button onClick={() => onNavigate('marketplace')}
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <Store size={16} /> Marketplace
+              </button>
               <button onClick={() => onNavigate('farmerprofile')}
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <Search size={16} /> Lookup Farmer
@@ -135,7 +140,14 @@ function Home({ onNavigate }) {
               </button>
             </div>
           ) : (
-            <WalletMultiButton />
+            /* Not connected — Marketplace visible, wallet button below */
+            <div className="flex flex-col items-center gap-4">
+              <button onClick={() => onNavigate('marketplace')}
+                className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center gap-2 text-sm font-medium">
+                <Store size={16} /> Browse Loan Marketplace
+              </button>
+              <WalletMultiButton />
+            </div>
           )}
         </div>
 
@@ -283,6 +295,9 @@ function App() {
       )}
       {page === 'farmerprofile' && (
         <FarmerProfile onBack={() => setPage('home')} />
+      )}
+      {page === 'marketplace' && (
+        <LoanMarketplace onBack={() => setPage('home')} />
       )}
       {page === 'admin' && (
         <AdminDashboard onBack={() => setPage('home')} />
