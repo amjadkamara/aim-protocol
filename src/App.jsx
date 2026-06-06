@@ -5,7 +5,7 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 import {
   ShieldCheck, Coins, Sprout, ArrowRight, Wallet,
   UserCheck, CreditCard, LayoutDashboard, Search,
-  MapPin, Loader2, Store
+  MapPin, Loader2, Store, Building2
 } from 'lucide-react'
 import Layout from './Layout'
 import FarmerID from './FarmerID'
@@ -16,6 +16,7 @@ import LoanHistory from './LoanHistory'
 import AdminDashboard from './AdminDashboard'
 import FarmerProfile from './FarmerProfile'
 import LoanMarketplace from './LoanMarketplace'
+import LenderRegistration from './LenderRegistration'
 import { useAimProgram } from './useAimProgram'
 
 function Home({ onNavigate }) {
@@ -43,14 +44,12 @@ function Home({ onNavigate }) {
       <section className="flex flex-col items-center text-center py-16 gap-6 relative">
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-violet-500/20 via-violet-500/5 to-transparent rounded-3xl pointer-events-none" />
 
-        {/* Unauthenticated badge */}
         {!connected && (
           <div className="bg-green-400/10 text-green-400 text-xs md:text-sm px-4 py-1.5 rounded-full border border-green-400/30 tracking-wide">
             Built on Solana • Africa 🌍
           </div>
         )}
 
-        {/* Heading — changes on connect */}
         {connected ? (
           <div className="flex flex-col items-center gap-2">
             {loadingFarmer ? (
@@ -130,6 +129,10 @@ function Home({ onNavigate }) {
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <Store size={16} /> Marketplace
               </button>
+              <button onClick={() => onNavigate('lenderregistration')}
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                <Building2 size={16} /> Register as Lender
+              </button>
               <button onClick={() => onNavigate('farmerprofile')}
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <Search size={16} /> Lookup Farmer
@@ -140,18 +143,23 @@ function Home({ onNavigate }) {
               </button>
             </div>
           ) : (
-            /* Not connected — Marketplace visible, wallet button below */
             <div className="flex flex-col items-center gap-4">
-              <button onClick={() => onNavigate('marketplace')}
-                className="bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center gap-2 text-sm font-medium">
-                <Store size={16} /> Browse Loan Marketplace
-              </button>
+              <div className="flex gap-3">
+                <button onClick={() => onNavigate('marketplace')}
+                  className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl transition flex items-center gap-2 text-sm font-medium">
+                  <Store size={16} /> Browse Marketplace
+                </button>
+                <button onClick={() => onNavigate('lenderregistration')}
+                  className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl transition flex items-center gap-2 text-sm font-medium">
+                  <Building2 size={16} /> Register as Lender
+                </button>
+              </div>
               <WalletMultiButton />
             </div>
           )}
         </div>
 
-        {/* Stats bar — always visible */}
+        {/* Stats bar */}
         <div className="mt-6 w-full border border-white/[0.08] rounded-2xl bg-white/[0.03] px-6 py-6 grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'NETWORK',        value: 'Solana Devnet',    color: 'text-green-400' },
@@ -170,7 +178,6 @@ function Home({ onNavigate }) {
       {/* ── MARKETING SECTIONS — hidden when connected ── */}
       {!connected && (
         <>
-          {/* HOW IT WORKS */}
           <section style={{paddingTop: '30px', paddingBottom: '15px', borderTop: '1px solid rgba(255,255,255,0.07)'}}>
             <div className="flex flex-col items-center text-center" style={{marginBottom: '32px'}}>
               <h2 className="text-2xl md:text-3xl font-semibold">How It Works</h2>
@@ -201,7 +208,6 @@ function Home({ onNavigate }) {
             </div>
           </section>
 
-          {/* FEATURES */}
           <section style={{paddingTop: '30px', paddingBottom: '0px', borderTop: '1px solid rgba(255,255,255,0.07)'}}>
             <div className="flex flex-col items-center text-center" style={{marginBottom: '32px'}}>
               <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Why AIM Protocol</p>
@@ -234,7 +240,6 @@ function Home({ onNavigate }) {
             </div>
           </section>
 
-          {/* CTA */}
           <section style={{paddingBottom: '96px'}}>
             <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-white/[0.04] px-8 md:px-14 py-14 text-center">
               <div className="absolute inset-0 -z-10 bg-gradient-to-br from-green-500/10 via-transparent to-violet-500/10 pointer-events-none" />
@@ -298,6 +303,9 @@ function App() {
       )}
       {page === 'marketplace' && (
         <LoanMarketplace onBack={() => setPage('home')} />
+      )}
+      {page === 'lenderregistration' && (
+        <LenderRegistration onBack={() => setPage('home')} />
       )}
       {page === 'admin' && (
         <AdminDashboard onBack={() => setPage('home')} />
