@@ -20,9 +20,35 @@ const ORG_TYPES = [
 ]
 
 const COUNTRIES = [
-  'Sierra Leone', 'Ghana', 'Nigeria', 'Kenya', 'Uganda',
-  'Tanzania', 'Rwanda', 'Senegal', 'Mali', 'Burkina Faso',
-  'Ethiopia', 'Mozambique', 'Zambia', 'Zimbabwe', 'Other',
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
+  "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain",
+  "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia",
+  "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso",
+  "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic",
+  "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Republic of)", "Costa Rica",
+  "Croatia", "Cuba", "Cyprus", "Czech Republic", "Côte d'Ivoire", "DR Congo", "Denmark",
+  "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador",
+  "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland",
+  "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada",
+  "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary",
+  "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy",
+  "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan",
+  "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania",
+  "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta",
+  "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova",
+  "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia",
+  "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria",
+  "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine",
+  "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal",
+  "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia",
+  "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe",
+  "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore",
+  "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea",
+  "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland",
+  "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga",
+  "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda",
+  "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay",
+  "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe",
 ]
 
 const CROP_FOCUS = [
@@ -36,7 +62,7 @@ const AIM_TERMS = `AIM PROTOCOL — LENDER PARTICIPATION TERMS
 Last updated: June 2026
 
 1. ELIGIBILITY
-Lenders must be registered legal entities (NGO, cooperative, MFI, development bank, or equivalent) operating in an African jurisdiction. Individual persons may not register as lenders. By submitting this registration, you confirm your organisation has the legal authority to deploy capital to third parties.
+Lenders must be registered legal entities (NGO, cooperative, MFI, development bank, impact fund, or equivalent) that direct capital toward agricultural lending in supported African markets. The lender's own jurisdiction of incorporation may be inside or outside Africa. Individual persons may not register as lenders. By submitting this registration, you confirm your organisation has the legal authority to deploy capital to third parties.
 
 2. ADMIN APPROVAL
 All lender registrations are subject to review and approval by Aadios Systems (SL) Ltd., operator of AIM Protocol. Approval is at the sole discretion of the operator. Submission does not guarantee activation. The operator reserves the right to reject, suspend, or revoke lender status at any time.
