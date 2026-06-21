@@ -1,10 +1,45 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { ShieldCheck, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ShieldCheck, Loader2, CheckCircle2, AlertCircle, Phone } from 'lucide-react'
 import { useAimProgram, getFarmerPDA, parseAnchorError } from './useAimProgram'
 
 const CROPS = ['Rice', 'Cassava', 'Maize', 'Groundnut', 'Sweet Potato', 'Sorghum', 'Millet']
-const DISTRICTS = ['Bo', 'Bombali', 'Bonthe', 'Falaba', 'Kailahun', 'Kambia', 'Karene', 'Kenema', 'Koinadugu', 'Kono', 'Moyamba', 'Port Loko', 'Pujehun', 'Tonkolili', 'Western Area Rural', 'Western Area Urban']
+
+const COUNTRIES = ['Sierra Leone', 'Ghana', 'Nigeria', 'Kenya', 'Rwanda']
+
+const PHONE_CODES = {
+  'Sierra Leone': '+232',
+  'Ghana': '+233',
+  'Nigeria': '+234',
+  'Kenya': '+254',
+  'Rwanda': '+250',
+}
+
+const DISTRICTS_BY_COUNTRY = {
+  'Sierra Leone': [
+    'Bo', 'Bombali', 'Bonthe', 'Falaba', 'Kailahun', 'Kambia', 'Karene', 'Kenema',
+    'Koinadugu', 'Kono', 'Moyamba', 'Port Loko', 'Pujehun', 'Tonkolili',
+    'Western Area Rural', 'Western Area Urban',
+  ],
+  'Ghana': [
+    'Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 'Greater Accra',
+    'North East', 'Northern', 'Oti', 'Savannah', 'Upper East', 'Upper West',
+    'Volta', 'Western', 'Western North',
+  ],
+  'Rwanda': [
+    'City of Kigali', 'Northern Province', 'Southern Province',
+    'Eastern Province', 'Western Province',
+  ],
+  'Nigeria': [
+    'Kaduna', 'Kano', 'Katsina', 'Niger', 'Kwara', 'Benue', 'Plateau',
+    'Oyo', 'Ogun', 'Kebbi', 'Lagos', 'FCT Abuja', 'Other (specify)',
+  ],
+  'Kenya': [
+    'Nakuru', 'Uasin Gishu', 'Kiambu', 'Meru', 'Kakamega', 'Bungoma',
+    'Machakos', 'Kisii', 'Kericho', 'Trans-Nzoia', 'Nairobi', 'Mombasa',
+    'Other (specify)',
+  ],
+}
 
 export default function FarmerID({ onBack, onSuccess }) {
   const { publicKey } = useWallet()
@@ -13,7 +48,11 @@ export default function FarmerID({ onBack, onSuccess }) {
   const [form, setForm] = useState({
     fullName: '',
     cropType: '',
+    country: '',
     district: '',
+    districtOther: '',
+    phoneCode: '',
+    phoneNumber: '',
     farmSize: '',
   })
   const [status, setStatus] = useState('idle') // idle | loading | success | error | already_registered
@@ -33,10 +72,49 @@ export default function FarmerID({ onBack, onSuccess }) {
   }, [publicKey])
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+
+    // Country change resets district and auto-fills phone code
+    if (name === 'country') {
+      setForm({
+        ...form,
+        country: value,
+        district: '',
+        districtOther: '',
+        phoneCode: PHONE_CODES[value] || '',
+      })
+      return
+    }
+
+    // District change clears the "Other" free-text unless still on "Other (specify)"
+    if (name === 'district' && value !== 'Other (specify)') {
+      setForm({ ...form, district: value, districtOther: '' })
+      return
+    }
+
+    setForm({ ...form, [name]: value })
   }
 
-  const isValid = form.fullName && form.cropType && form.district && form.farmSize
+  const districtOptions = form.country ? DISTRICTS_BY_COUNTRY[form.country] || [] : []
+  const isOtherDistrict = form.district === 'Other (specify)'
+
+  // Resolve the actual district value to send on-chain
+  const resolvedDistrict = isOtherDistrict ? form.districtOther.trim() : form.district
+
+  const phoneDigitsValid =
+    form.phoneNumber.replace(/\D/g, '').length >= 6 &&
+    form.phoneNumber.replace(/\D/g, '').length <= 15
+
+  const isValid =
+    form.fullName.trim() &&
+    form.cropType &&
+    form.country &&
+    form.district &&
+    (!isOtherDistrict || form.districtOther.trim()) &&
+    form.phoneCode &&
+    form.phoneNumber.trim() &&
+    phoneDigitsValid &&
+    form.farmSize
 
   const handleSubmit = async () => {
     if (!publicKey || !isValid) return
@@ -47,7 +125,9 @@ export default function FarmerID({ onBack, onSuccess }) {
       const result = await createFarmerID({
         fullName: form.fullName,
         cropType: form.cropType,
-        district: form.district,
+        district: resolvedDistrict,
+        country: form.country,
+        phoneNumber: `${form.phoneCode} ${form.phoneNumber.trim()}`,
         farmSize: form.farmSize,
       })
 
@@ -76,6 +156,10 @@ export default function FarmerID({ onBack, onSuccess }) {
           <p className="font-semibold">{existingFarmer.cropType}</p>
           <p className="text-white/40 text-xs mt-3 mb-1">DISTRICT</p>
           <p className="font-semibold">{existingFarmer.district}</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">COUNTRY</p>
+          <p className="font-semibold">{existingFarmer.country}</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">PHONE</p>
+          <p className="font-semibold">{existingFarmer.phoneNumber}</p>
           <p className="text-white/40 text-xs mt-3 mb-1">FARM SIZE</p>
           <p className="font-semibold">{existingFarmer.farmSize} acres</p>
           <p className="text-white/40 text-xs mt-3 mb-1">FARMER ID (PDA)</p>
@@ -108,7 +192,11 @@ export default function FarmerID({ onBack, onSuccess }) {
           <p className="text-white/40 text-xs mt-3 mb-1">CROP TYPE</p>
           <p className="font-semibold">{form.cropType}</p>
           <p className="text-white/40 text-xs mt-3 mb-1">DISTRICT</p>
-          <p className="font-semibold">{form.district}</p>
+          <p className="font-semibold">{resolvedDistrict}</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">COUNTRY</p>
+          <p className="font-semibold">{form.country}</p>
+          <p className="text-white/40 text-xs mt-3 mb-1">PHONE</p>
+          <p className="font-semibold">{form.phoneCode} {form.phoneNumber}</p>
           <p className="text-white/40 text-xs mt-3 mb-1">FARM SIZE</p>
           <p className="font-semibold">{form.farmSize} acres</p>
           <p className="text-white/40 text-xs mt-3 mb-1">FARMER ID (PDA)</p>
@@ -116,8 +204,8 @@ export default function FarmerID({ onBack, onSuccess }) {
             {publicKey && getFarmerPDA(publicKey).toString()}
           </p>
         </div>
-        
-          <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
+
+        <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
           target="_blank"
           rel="noopener noreferrer"
           className="bg-green-500 hover:bg-green-400 text-black font-semibold px-6 py-3 rounded-lg transition"
@@ -174,16 +262,77 @@ export default function FarmerID({ onBack, onSuccess }) {
           </div>
 
           <div>
-            <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">District</label>
+            <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">Country</label>
+            <select
+              name="country"
+              value={form.country}
+              onChange={handleChange}
+              className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400 transition"
+            >
+              <option value="">Select country</option>
+              {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">
+              {form.country === 'Rwanda' ? 'Province' : form.country === 'Ghana' ? 'Region' : 'District'}
+            </label>
             <select
               name="district"
               value={form.district}
               onChange={handleChange}
-              className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400 transition"
+              disabled={!form.country}
+              className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <option value="">Select district</option>
-              {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+              <option value="">
+                {form.country ? 'Select region' : 'Select country first'}
+              </option>
+              {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
+
+            {isOtherDistrict && (
+              <input
+                name="districtOther"
+                value={form.districtOther}
+                onChange={handleChange}
+                placeholder="Type your district / region"
+                className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-green-400 transition"
+              />
+            )}
+          </div>
+
+          <div>
+            <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">Phone Number</label>
+            <div className="flex gap-2">
+              <select
+                name="phoneCode"
+                value={form.phoneCode}
+                onChange={handleChange}
+                className="w-24 bg-[#0a0f1e] border border-white/10 rounded-lg px-2 py-3 text-white focus:outline-none focus:border-green-400 transition"
+              >
+                <option value="">Code</option>
+                {Object.entries(PHONE_CODES).map(([country, code]) => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
+              </select>
+              <div className="relative flex-1">
+                <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                <input
+                  name="phoneNumber"
+                  value={form.phoneNumber}
+                  onChange={handleChange}
+                  placeholder="76 123456"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 text-white placeholder-white/30 focus:outline-none focus:border-green-400 transition"
+                  style={{ paddingLeft: '2.5rem' }}
+                />
+              </div>
+            </div>
+            {form.phoneNumber && !phoneDigitsValid && (
+              <p className="text-yellow-400/80 text-xs mt-1.5">
+                Phone number should be between 6 and 15 digits.
+              </p>
+            )}
           </div>
 
           <div>

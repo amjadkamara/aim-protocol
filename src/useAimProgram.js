@@ -33,7 +33,7 @@ export function useAimProgram() {
     return new Program(idl, provider)
   }, [connection, wallet])
 
-  const createFarmerID = async ({ fullName, cropType, district, farmSize }) => {
+  const createFarmerID = async ({ fullName, cropType, district, country, phoneNumber, farmSize }) => {
     if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
 
     const farmerPDA = getFarmerPDA(wallet.publicKey)
@@ -43,6 +43,8 @@ export function useAimProgram() {
         fullName,
         cropType,
         district,
+        country,
+        phoneNumber,
         parseFloat(farmSize)
       )
       .accounts({
