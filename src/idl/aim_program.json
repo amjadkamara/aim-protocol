@@ -8,6 +8,30 @@
   },
   "instructions": [
     {
+      "name": "approve_lender",
+      "discriminator": [
+        79,
+        182,
+        0,
+        139,
+        226,
+        91,
+        199,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "lender",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "close_loan",
       "discriminator": [
         96,
@@ -86,6 +110,31 @@
           }
         },
         {
+          "name": "lender_check",
+          "docs": [
+            "Never deserialized, never written to."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  110,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
           "name": "owner",
           "writable": true,
           "signer": true
@@ -109,8 +158,130 @@
           "type": "string"
         },
         {
+          "name": "country",
+          "type": "string"
+        },
+        {
+          "name": "phone_number",
+          "type": "string"
+        },
+        {
           "name": "farm_size",
           "type": "f64"
+        }
+      ]
+    },
+    {
+      "name": "register_lender",
+      "discriminator": [
+        106,
+        218,
+        85,
+        233,
+        227,
+        161,
+        105,
+        68
+      ],
+      "accounts": [
+        {
+          "name": "lender",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  110,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "farmer_check",
+          "docs": [
+            "Never deserialized, never written to."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  97,
+                  114,
+                  109,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "org_type",
+          "type": "string"
+        },
+        {
+          "name": "country",
+          "type": "string"
+        },
+        {
+          "name": "city",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "max_loan_sol",
+          "type": "u64"
+        },
+        {
+          "name": "interest_rate_bps",
+          "type": "u16"
+        },
+        {
+          "name": "max_duration_weeks",
+          "type": "u8"
+        },
+        {
+          "name": "min_credit_score",
+          "type": "u64"
+        },
+        {
+          "name": "capital_budget",
+          "type": "u64"
         }
       ]
     },
@@ -240,6 +411,9 @@
           }
         },
         {
+          "name": "lender"
+        },
+        {
           "name": "owner",
           "writable": true,
           "signer": true,
@@ -283,6 +457,19 @@
       ]
     },
     {
+      "name": "LenderAccount",
+      "discriminator": [
+        12,
+        65,
+        47,
+        248,
+        28,
+        161,
+        188,
+        87
+      ]
+    },
+    {
       "name": "LoanAccount",
       "discriminator": [
         223,
@@ -311,6 +498,26 @@
       "code": 6002,
       "name": "LoanNotRepaid",
       "msg": "Loan has not been repaid yet"
+    },
+    {
+      "code": 6003,
+      "name": "AdminCannotRegister",
+      "msg": "Admin wallet cannot register as a Farmer or Lender"
+    },
+    {
+      "code": 6004,
+      "name": "Unauthorized",
+      "msg": "Only the admin wallet can perform this action"
+    },
+    {
+      "code": 6005,
+      "name": "LenderNotActive",
+      "msg": "This lender is not yet approved by admin"
+    },
+    {
+      "code": 6006,
+      "name": "WalletAlreadyHasRole",
+      "msg": "This wallet already holds a different role on the protocol"
     }
   ],
   "types": [
@@ -336,11 +543,91 @@
             "type": "string"
           },
           {
+            "name": "country",
+            "type": "string"
+          },
+          {
+            "name": "phone_number",
+            "type": "string"
+          },
+          {
             "name": "farm_size",
             "type": "f64"
           },
           {
             "name": "has_active_loan",
+            "type": "bool"
+          },
+          {
+            "name": "loan_counter",
+            "type": "u64"
+          },
+          {
+            "name": "credit_score",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LenderAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "org_type",
+            "type": "string"
+          },
+          {
+            "name": "country",
+            "type": "string"
+          },
+          {
+            "name": "city",
+            "type": "string"
+          },
+          {
+            "name": "email",
+            "type": "string"
+          },
+          {
+            "name": "max_loan_sol",
+            "type": "u64"
+          },
+          {
+            "name": "interest_rate_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_duration_weeks",
+            "type": "u8"
+          },
+          {
+            "name": "min_credit_score",
+            "type": "u64"
+          },
+          {
+            "name": "capital_budget",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
             "type": "bool"
           },
           {
@@ -365,6 +652,10 @@
           },
           {
             "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "lender",
             "type": "pubkey"
           },
           {
