@@ -3,7 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import {
   ShieldCheck, Coins, Loader2, AlertCircle,
   Clock, AlertTriangle, CheckCircle2, MapPin,
-  Sprout, Calendar, Hash, History
+  Sprout, Calendar, Hash, History, Building2, Store
 } from 'lucide-react'
 import { useAimProgram, getFarmerPDA } from './useAimProgram'
 
@@ -27,21 +27,31 @@ function getDaysInfo(loan) {
   return { diffDays, overdue: Date.now() > deadline, deadline }
 }
 
-export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHistory }) {
+export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHistory, onMarketplace }) {
   const { publicKey } = useWallet()
-  const { fetchFarmer, fetchLoan, closeLoan } = useAimProgram()
+  const { fetchFarmer, fetchLoan, fetchLender, closeLoan } = useAimProgram()
 
   const [farmer, setFarmer] = useState(null)
+  const [lender, setLender] = useState(null)
   const [loan, setLoan] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!publicKey) return
     setLoading(true)
-    Promise.all([fetchFarmer(), fetchLoan()]).then(([farmerData, loanData]) => {
-      setFarmer(farmerData)
-      setLoan(loanData)
-      setLoading(false)
+    fetchLender().then((lenderData) => {
+      if (lenderData) {
+        setLender(lenderData)
+        setFarmer(null)
+        setLoan(null)
+        setLoading(false)
+        return
+      }
+      Promise.all([fetchFarmer(), fetchLoan()]).then(([farmerData, loanData]) => {
+        setFarmer(farmerData)
+        setLoan(loanData)
+        setLoading(false)
+      })
     })
   }, [publicKey])
 
@@ -50,6 +60,87 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
       <div className="flex flex-col items-center justify-center px-4 py-16 gap-4">
         <Loader2 size={32} className="animate-spin text-white/40" />
         <p className="text-white/40">Loading your dashboard...</p>
+      </div>
+    )
+  }
+
+  if (lender) {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 py-16">
+        <div className="w-full max-w-lg">
+
+          <button onClick={onBack} className="text-white/40 hover:text-white text-sm mb-8 transition">
+            ← Back
+          </button>
+
+          <h2 className="text-2xl font-bold mb-1">My Dashboard</h2>
+          <p className="text-white/40 text-sm mb-8">Your lender profile on AIM Protocol.</p>
+
+          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 size={18} className="text-violet-400" />
+              <span className="text-violet-400 text-xs font-semibold uppercase tracking-widest">Lender Profile</span>
+            </div>
+
+            <h3 className="text-2xl font-bold mb-4">{lender.name}</h3>
+
+            <div className="mb-4">
+              {lender.isActive ? (
+                <span className="bg-green-400/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full border border-green-400/30">
+                  ● ACTIVE
+                </span>
+              ) : (
+                <span className="bg-yellow-400/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full border border-yellow-400/30">
+                  ◌ PENDING APPROVAL
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-white/40 text-xs mb-1">MAX LOAN</p>
+                <p className="font-semibold">
+                  {(lender.maxLoanLamports.toNumber() / 1_000_000_000).toFixed(2)} SOL
+                </p>
+              </div>
+              <div>
+                <p className="text-white/40 text-xs mb-1">INTEREST RATE</p>
+                <p className="font-semibold">{(lender.interestRateBps / 100).toFixed(1)}% APR</p>
+              </div>
+              <div>
+                <p className="text-white/40 text-xs mb-1">MAX DURATION</p>
+                <p className="font-semibold">{lender.maxDurationWeeks} weeks</p>
+              </div>
+              <div>
+                <p className="text-white/40 text-xs mb-1">CAPITAL BUDGET</p>
+                <p className="font-semibold">
+                  {(lender.capitalBudgetLamports.toNumber() / 1_000_000_000).toFixed(2)} SOL
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/10">
+              <p className="text-white/40 text-xs mb-1 flex items-center gap-1">
+                <MapPin size={11} /> LOCATION
+              </p>
+              <p className="font-semibold">{lender.city}, {lender.country}</p>
+            </div>
+          </div>
+
+          {!lender.isActive && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-yellow-300 text-xs mb-6">
+              Your registration is awaiting admin approval. Once approved, your profile will
+              appear on the Loan Marketplace and you can begin deploying capital to farmers.
+            </div>
+          )}
+
+          <button
+            onClick={onMarketplace}
+            className="w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
+          >
+            <Store size={18} /> View Loan Marketplace →
+          </button>
+        </div>
       </div>
     )
   }

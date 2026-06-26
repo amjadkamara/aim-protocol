@@ -264,7 +264,7 @@
           "type": "string"
         },
         {
-          "name": "max_loan_sol",
+          "name": "max_loan_lamports",
           "type": "u64"
         },
         {
@@ -280,7 +280,7 @@
           "type": "u64"
         },
         {
-          "name": "capital_budget",
+          "name": "capital_budget_lamports",
           "type": "u64"
         }
       ]
@@ -607,7 +607,7 @@
             "type": "string"
           },
           {
-            "name": "max_loan_sol",
+            "name": "max_loan_lamports",
             "type": "u64"
           },
           {
@@ -623,7 +623,7 @@
             "type": "u64"
           },
           {
-            "name": "capital_budget",
+            "name": "capital_budget_lamports",
             "type": "u64"
           },
           {

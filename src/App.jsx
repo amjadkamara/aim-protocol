@@ -21,19 +21,30 @@ import { useAimProgram } from './useAimProgram'
 
 function Home({ onNavigate }) {
   const { connected, publicKey } = useWallet()
-  const { fetchFarmer } = useAimProgram()
+  const { fetchFarmer, fetchLender } = useAimProgram()
   const [farmer, setFarmer] = useState(null)
+  const [lender, setLender] = useState(null)
   const [loadingFarmer, setLoadingFarmer] = useState(false)
 
   useEffect(() => {
     if (!connected || !publicKey) {
       setFarmer(null)
+      setLender(null)
       return
     }
     setLoadingFarmer(true)
-    fetchFarmer().then(data => {
-      setFarmer(data)
-      setLoadingFarmer(false)
+    fetchLender().then(lenderData => {
+      setLender(lenderData)
+      if (lenderData) {
+        // Wallet is a lender — no need to also check farmer status
+        setFarmer(null)
+        setLoadingFarmer(false)
+        return
+      }
+      fetchFarmer().then(farmerData => {
+        setFarmer(farmerData)
+        setLoadingFarmer(false)
+      })
     })
   }, [connected, publicKey])
 
@@ -54,6 +65,23 @@ function Home({ onNavigate }) {
           <div className="flex flex-col items-center gap-2">
             {loadingFarmer ? (
               <Loader2 size={24} className="animate-spin text-white/30" />
+            ) : lender ? (
+              <>
+                <div className="bg-violet-400/10 text-violet-400 text-xs px-4 py-1.5 rounded-full border border-violet-400/30 tracking-wide mb-1">
+                  {lender.isActive ? 'Active Lender' : 'Lender — Pending Approval'}
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+                  Welcome back,
+                </h1>
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight text-violet-400">
+                  {lender.name}
+                </h1>
+                <p className="text-white/40 text-sm mt-1">
+                  {lender.isActive
+                    ? 'Your lending profile is live on the Loan Marketplace.'
+                    : 'Your registration is awaiting admin approval before you can deploy capital.'}
+                </p>
+              </>
             ) : farmer ? (
               <>
                 <div className="bg-green-400/10 text-green-400 text-xs px-4 py-1.5 rounded-full border border-green-400/30 tracking-wide mb-1">
@@ -109,30 +137,56 @@ function Home({ onNavigate }) {
         <div className="pt-2 w-full">
           {connected ? (
             <div className="flex flex-col w-full sm:flex-row sm:flex-wrap gap-3 justify-center">
-              <button onClick={() => onNavigate('dashboard')}
-                className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
-                <LayoutDashboard size={16} /> My Dashboard
-              </button>
-              <button onClick={() => onNavigate('farmerid')}
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                <ShieldCheck size={16} /> Create Farmer ID
-              </button>
-              <button onClick={() => onNavigate('microloan')}
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                <Coins size={16} /> Request Loan
-              </button>
-              <button onClick={() => onNavigate('repayeloan')}
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                <ArrowRight size={16} /> Repay Loan
-              </button>
-              <button onClick={() => onNavigate('marketplace')}
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                <Store size={16} /> Marketplace
-              </button>
-              <button onClick={() => onNavigate('lenderregistration')}
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                <Building2 size={16} /> Register as Lender
-              </button>
+              {lender ? (
+                <>
+                  <button onClick={() => onNavigate('dashboard')}
+                    className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                    <LayoutDashboard size={16} /> My Dashboard
+                  </button>
+                  <button onClick={() => onNavigate('marketplace')}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <Store size={16} /> Marketplace
+                  </button>
+                </>
+              ) : farmer ? (
+                <>
+                  <button onClick={() => onNavigate('dashboard')}
+                    className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                    <LayoutDashboard size={16} /> My Dashboard
+                  </button>
+                  <button onClick={() => onNavigate('microloan')}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <Coins size={16} /> Request Loan
+                  </button>
+                  <button onClick={() => onNavigate('repayeloan')}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <ArrowRight size={16} /> Repay Loan
+                  </button>
+                  <button onClick={() => onNavigate('marketplace')}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <Store size={16} /> Marketplace
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => onNavigate('dashboard')}
+                    className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                    <LayoutDashboard size={16} /> My Dashboard
+                  </button>
+                  <button onClick={() => onNavigate('farmerid')}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <ShieldCheck size={16} /> Create Farmer ID
+                  </button>
+                  <button onClick={() => onNavigate('marketplace')}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <Store size={16} /> Marketplace
+                  </button>
+                  <button onClick={() => onNavigate('lenderregistration')}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                    <Building2 size={16} /> Register as Lender
+                  </button>
+                </>
+              )}
               <button onClick={() => onNavigate('farmerprofile')}
                 className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
                 <Search size={16} /> Lookup Farmer
@@ -293,6 +347,7 @@ function App() {
           onRequestLoan={() => setPage('microloan')}
           onRepayLoan={() => setPage('repayeloan')}
           onViewHistory={() => setPage('loanhistory')}
+          onMarketplace={() => setPage('marketplace')}
         />
       )}
       {page === 'loanhistory' && (

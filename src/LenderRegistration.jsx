@@ -7,7 +7,7 @@ import {
   Coins, TrendingUp, CalendarClock, Info,
   Hash, MapPin, ChevronDown, ChevronUp, FileText
 } from 'lucide-react'
-import { useAimProgram } from './useAimProgram'
+import { useAimProgram, getLenderPDA, parseAnchorError } from './useAimProgram'
 
 const ORG_TYPES = [
   'NGO (Non-Governmental Organisation)',
@@ -99,21 +99,19 @@ function StepIndicator({ current }) {
   return (
     <div className="flex items-center gap-2 mb-8">
       {STEPS.map((label, i) => {
-        const done   = i < current
+        const done = i < current
         const active = i === current
         return (
           <div key={i} className="flex items-center gap-2">
             <div className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border transition ${
-                done   ? 'bg-green-500/20 border-green-500/40 text-green-400' :
-                active ? 'bg-violet-600 border-violet-500 text-white' :
-                         'bg-white/[0.04] border-white/10 text-white/30'
-              }`}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border transition ${done ? 'bg-green-500/20 border-green-500/40 text-green-400' :
+                  active ? 'bg-violet-600 border-violet-500 text-white' :
+                    'bg-white/[0.04] border-white/10 text-white/30'
+                }`}>
                 {done ? <CheckCircle2 size={14} /> : i + 1}
               </div>
-              <span className={`text-xs font-medium hidden sm:block ${
-                active ? 'text-white' : done ? 'text-green-400' : 'text-white/30'
-              }`}>
+              <span className={`text-xs font-medium hidden sm:block ${active ? 'text-white' : done ? 'text-green-400' : 'text-white/30'
+                }`}>
                 {label}
               </span>
             </div>
@@ -188,11 +186,10 @@ function TermsBox({ accepted, onAccept }) {
       <label className="flex items-start gap-3 cursor-pointer group">
         <div
           onClick={() => onAccept(!accepted)}
-          className={`w-5 h-5 rounded border shrink-0 mt-0.5 flex items-center justify-center transition ${
-            accepted
+          className={`w-5 h-5 rounded border shrink-0 mt-0.5 flex items-center justify-center transition ${accepted
               ? 'bg-violet-600 border-violet-500'
               : 'bg-white/[0.04] border-white/20 group-hover:border-white/40'
-          }`}
+            }`}
         >
           {accepted && <CheckCircle2 size={12} className="text-white" />}
         </div>
@@ -206,53 +203,55 @@ function TermsBox({ accepted, onAccept }) {
 
 export default function LenderRegistration({ onBack }) {
   const { publicKey, connected } = useWallet()
-  const { program } = useAimProgram()
+  const { program, registerLender, fetchLender, fetchFarmer } = useAimProgram()
 
-  const [step, setStep]         = useState(0)
-  const [status, setStatus]     = useState('idle')
-  const [error, setError]       = useState('')
+  const [step, setStep] = useState(0)
+  const [status, setStatus] = useState('idle')
+  const [error, setError] = useState('')
   const [existing, setExisting] = useState(null)
+  const [existingFarmer, setExistingFarmer] = useState(null)
+  const [roleChecking, setRoleChecking] = useState(true)
 
   const [form, setForm] = useState({
-    orgName:          '',
-    orgType:          '',
-    registrationNo:   '',
-    country:          '',
-    city:             '',
-    website:          '',
-    contactEmail:     '',
-    description:      '',
-    maxLoanSol:       '',
-    interestRateApr:  '',
+    orgName: '',
+    orgType: '',
+    registrationNo: '',
+    country: '',
+    city: '',
+    website: '',
+    contactEmail: '',
+    description: '',
+    maxLoanSol: '',
+    interestRateApr: '',
     maxDurationWeeks: '',
-    minCreditScore:   '0',
-    cropFocus:        [],
+    minCreditScore: '0',
+    cropFocus: [],
     capitalBudgetSol: '',
-    acceptTerms:      false,
-    confirmCapital:   false,
+    acceptTerms: false,
+    confirmCapital: false,
   })
 
   useEffect(() => {
-    if (!program || !publicKey) return
-    const checkExisting = async () => {
-      try {
-        if (program.account.lenderAccount) {
-          const [pda] = await import('@coral-xyz/anchor')
-            .then(({ web3 }) => [
-              web3.PublicKey.findProgramAddressSync(
-                [Buffer.from('lender'), publicKey.toBuffer()],
-                program.programId
-              )[0]
-            ])
-          const data = await program.account.lenderAccount.fetch(pda)
+    if (!program || !publicKey) {
+      setRoleChecking(false)
+      return
+    }
+    setRoleChecking(true)
+    fetchFarmer().then((farmerData) => {
+      if (farmerData) {
+        setExistingFarmer(farmerData)
+        setStatus('already_farmer')
+        setRoleChecking(false)
+        return
+      }
+      fetchLender().then((data) => {
+        if (data) {
           setExisting(data)
           setStatus('already_registered')
         }
-      } catch {
-        // No existing account — good
-      }
-    }
-    checkExisting()
+        setRoleChecking(false)
+      })
+    })
   }, [program, publicKey])
 
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
@@ -290,10 +289,24 @@ export default function LenderRegistration({ onBack }) {
     setStatus('loading')
     setError('')
     try {
-      await new Promise(r => setTimeout(r, 1800))
+      await registerLender({
+        name: form.orgName,
+        orgType: form.orgType,
+        country: form.country,
+        city: form.city,
+        email: form.contactEmail,
+        // Raw SOL values — lamports conversion happens inside registerLender()
+        maxLoanSol: parseFloat(form.maxLoanSol),
+        // Interest rate stored on-chain as basis points (1% = 100 bps)
+        interestRateBps: Math.round(parseFloat(form.interestRateApr) * 100),
+        maxDurationWeeks: parseInt(form.maxDurationWeeks),
+        minCreditScore: parseInt(form.minCreditScore) || 0,
+        capitalBudgetSol: parseFloat(form.capitalBudgetSol),
+      })
       setStatus('pending')
     } catch (err) {
-      setError('Transaction failed. Please check your wallet is on devnet and try again.')
+      console.log('FULL REGISTER LENDER ERROR:', err)
+      setError(parseAnchorError(err))
       setStatus('idle')
     }
   }
@@ -320,6 +333,48 @@ export default function LenderRegistration({ onBack }) {
         <button onClick={onBack}
           className="flex items-center gap-2 text-white/40 hover:text-white text-sm transition">
           <ArrowLeft size={14} /> Back
+        </button>
+      </div>
+    )
+  }
+
+  // ── Still checking role — don't render anything else until we know ────────
+  if (roleChecking) {
+    return (
+      <div className="w-full max-w-md px-6 flex flex-col items-center gap-4 py-24 text-center">
+        <Loader2 size={28} className="animate-spin text-white/30" />
+        <p className="text-white/40 text-sm">Checking wallet status...</p>
+      </div>
+    )
+  }
+
+  // ── This wallet is already registered as a Farmer — block Lender registration ──
+  if (status === 'already_farmer' && existingFarmer) {
+    return (
+      <div className="w-full max-w-md px-6 flex flex-col items-center gap-6 py-20 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+          <ShieldAlert size={28} className="text-green-400" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold mb-2">You're Registered as a Farmer</h2>
+          <p className="text-white/50 text-sm max-w-xs">
+            This wallet already has a Farmer ID on AIM Protocol. A wallet can only hold one
+            role — Farmer or Lender, not both.
+          </p>
+        </div>
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-5 w-full text-left flex flex-col gap-3">
+          <div>
+            <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Farmer Name</p>
+            <p className="font-semibold">{existingFarmer.fullName}</p>
+          </div>
+          <div>
+            <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Crop Type</p>
+            <p className="font-semibold">{existingFarmer.cropType}</p>
+          </div>
+        </div>
+        <button onClick={onBack}
+          className="flex items-center gap-2 text-white/40 hover:text-white text-sm transition">
+          <ArrowLeft size={14} /> Back to home
         </button>
       </div>
     )
@@ -545,9 +600,8 @@ export default function LenderRegistration({ onBack }) {
             />
             <div className="flex justify-between mt-1.5">
               <InputHint>Minimum 20 characters. Shown to farmers on the marketplace.</InputHint>
-              <span className={`text-xs ${
-                form.description.length < 20 ? 'text-red-400/60' : 'text-green-400/60'
-              }`}>
+              <span className={`text-xs ${form.description.length < 20 ? 'text-red-400/60' : 'text-green-400/60'
+                }`}>
                 {form.description.length} chars
               </span>
             </div>
@@ -671,11 +725,10 @@ export default function LenderRegistration({ onBack }) {
                   key={crop}
                   type="button"
                   onClick={() => toggleCrop(crop)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-                    form.cropFocus.includes(crop)
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${form.cropFocus.includes(crop)
                       ? 'bg-green-500/20 border-green-500/40 text-green-400'
                       : 'bg-white/[0.04] border-white/10 text-white/40 hover:bg-white/[0.08]'
-                  }`}
+                    }`}
                 >
                   {crop}
                 </button>
@@ -804,11 +857,10 @@ export default function LenderRegistration({ onBack }) {
           <label className="flex items-start gap-3 cursor-pointer group">
             <div
               onClick={() => set('confirmCapital', !form.confirmCapital)}
-              className={`w-5 h-5 rounded border shrink-0 mt-0.5 flex items-center justify-center transition ${
-                form.confirmCapital
+              className={`w-5 h-5 rounded border shrink-0 mt-0.5 flex items-center justify-center transition ${form.confirmCapital
                   ? 'bg-violet-600 border-violet-500'
                   : 'bg-white/[0.04] border-white/20 group-hover:border-white/40'
-              }`}
+                }`}
             >
               {form.confirmCapital && <CheckCircle2 size={12} className="text-white" />}
             </div>

@@ -1,6 +1,6 @@
 import { Program, AnchorProvider, web3, BN } from '@coral-xyz/anchor'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import idl from './idl/aim_program.json'
 
 const PROGRAM_ID = new web3.PublicKey('AhHHJTu5vodDYE2yLNet2bE6jad9F3xSfbLQdUmykKqB')
@@ -21,22 +21,32 @@ export function getLoanPDA(walletPublicKey) {
   return pda
 }
 
+export function getLenderPDA(walletPublicKey) {
+  const [pda] = web3.PublicKey.findProgramAddressSync(
+    [Buffer.from('lender'), walletPublicKey.toBuffer()],
+    PROGRAM_ID
+  )
+  return pda
+}
+
 export function useAimProgram() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const walletPublicKey = wallet.publicKey
 
   const program = useMemo(() => {
-    if (!wallet.publicKey) return null
+    if (!walletPublicKey) return null
     const provider = new AnchorProvider(connection, wallet, {
       commitment: 'confirmed',
     })
     return new Program(idl, provider)
-  }, [connection, wallet])
+  }, [connection, wallet, walletPublicKey])
 
-  const createFarmerID = async ({ fullName, cropType, district, country, phoneNumber, farmSize }) => {
-    if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
+  const createFarmerID = useCallback(async ({ fullName, cropType, district, country, phoneNumber, farmSize }) => {
+    if (!program || !walletPublicKey) throw new Error('Wallet not connected')
 
-    const farmerPDA = getFarmerPDA(wallet.publicKey)
+    const farmerPDA = getFarmerPDA(walletPublicKey)
+    const lenderCheckPDA = getLenderPDA(walletPublicKey)
 
     const tx = await program.methods
       .createFarmerId(
@@ -49,7 +59,8 @@ export function useAimProgram() {
       )
       .accounts({
         farmer: farmerPDA,
-        owner: wallet.publicKey,
+        lenderCheck: lenderCheckPDA,
+        owner: walletPublicKey,
         systemProgram: web3.SystemProgram.programId,
       })
       .rpc({
@@ -61,13 +72,156 @@ export function useAimProgram() {
       signature: tx,
       farmerPublicKey: farmerPDA.toString(),
     }
-  }
+  }, [program, walletPublicKey])
 
-  const requestLoan = async ({ amount, purpose, repaymentWeeks }) => {
-    if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
+  const registerLender = useCallback(async ({
+    name, orgType, country, city, email,
+    maxLoanSol, interestRateBps, maxDurationWeeks, minCreditScore, capitalBudgetSol,
+  }) => {
+    if (!program || !walletPublicKey) throw new Error('Wallet not connected')
 
-    const farmerPDA = getFarmerPDA(wallet.publicKey)
-    const loanPDA = getLoanPDA(wallet.publicKey)
+    if (!Number.isFinite(maxLoanSol) || maxLoanSol <= 0) {
+      throw new Error('Max loan amount is missing or invalid.')
+    }
+    if (!Number.isFinite(capitalBudgetSol) || capitalBudgetSol <= 0) {
+      throw new Error('Capital budget is missing or invalid.')
+    }
+
+    const lenderPDA = getLenderPDA(walletPublicKey)
+    const farmerCheckPDA = getFarmerPDA(walletPublicKey)
+
+    const maxLoanLamports = Math.round(maxLoanSol * 1_000_000_000)
+    const capitalBudgetLamports = Math.round(capitalBudgetSol * 1_000_000_000)
+
+    const methodBuilder = program.methods
+      .registerLender(
+        name,
+        orgType,
+        country,
+        city,
+        email,
+        new BN(maxLoanLamports),
+        interestRateBps,
+        maxDurationWeeks,
+        new BN(minCreditScore),
+        new BN(capitalBudgetLamports)
+      )
+      .accounts({
+        lender: lenderPDA,
+        farmerCheck: farmerCheckPDA,
+        owner: walletPublicKey,
+        systemProgram: web3.SystemProgram.programId,
+      })
+
+    const tx = await methodBuilder.rpc({
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    })
+
+    return {
+      signature: tx,
+      lenderPublicKey: lenderPDA.toString(),
+    }
+  }, [program, walletPublicKey])
+
+  // Admin-only: flips a lender's is_active flag to true.
+  const approveLender = useCallback(async (lenderPublicKey) => {
+    if (!program || !walletPublicKey) throw new Error('Wallet not connected')
+
+    const lenderPubkey = typeof lenderPublicKey === 'string'
+      ? new web3.PublicKey(lenderPublicKey)
+      : lenderPublicKey
+
+    const tx = await program.methods
+      .approveLender()
+      .accounts({
+        lender: lenderPubkey,
+        admin: walletPublicKey,
+      })
+      .rpc({
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      })
+
+    return { signature: tx }
+  }, [program, walletPublicKey])
+
+  const fetchLender = useCallback(async () => {
+    if (!program || !walletPublicKey) return null
+    const lenderPDA = getLenderPDA(walletPublicKey)
+    try {
+      return await program.account.lenderAccount.fetch(lenderPDA)
+    } catch {
+      return null
+    }
+  }, [program, walletPublicKey])
+
+  // Fetches every LenderAccount on-chain, decoding each one individually so a
+  // single legacy/malformed account doesn't crash the whole list.
+  // IMPORTANT: program.coder.accounts.memcmp(name) returns a raw { offset, bytes }
+  // object — Solana's RPC requires this wrapped as { memcmp: { offset, bytes } }.
+  const fetchAllLenders = useCallback(async () => {
+    if (!program) return []
+    const discriminator = program.coder.accounts.memcmp('lenderAccount')
+    const raw = await connection.getProgramAccounts(PROGRAM_ID, {
+      filters: discriminator ? [{ memcmp: discriminator }] : [],
+    })
+
+    const results = []
+    for (const { pubkey, account } of raw) {
+      try {
+        const decoded = program.coder.accounts.decode('lenderAccount', account.data)
+        results.push({ publicKey: pubkey, account: decoded, decodeError: null })
+      } catch (err) {
+        console.warn('fetchAllLenders — skipped undecodable account:', pubkey.toString(), err.message)
+      }
+    }
+    return results
+  }, [program, connection])
+
+  const fetchAllFarmers = useCallback(async () => {
+    if (!program) return []
+    const discriminator = program.coder.accounts.memcmp('farmerAccount')
+    const raw = await connection.getProgramAccounts(PROGRAM_ID, {
+      filters: discriminator ? [{ memcmp: discriminator }] : [],
+    })
+
+    const results = []
+    for (const { pubkey, account } of raw) {
+      try {
+        const decoded = program.coder.accounts.decode('farmerAccount', account.data)
+        results.push({ publicKey: pubkey, account: decoded, decodeError: null })
+      } catch (err) {
+        console.warn('fetchAllFarmers — skipped undecodable account:', pubkey.toString(), err.message)
+      }
+    }
+    return results
+  }, [program, connection])
+
+  const fetchAllLoans = useCallback(async () => {
+    if (!program) return []
+    const discriminator = program.coder.accounts.memcmp('loanAccount')
+    const raw = await connection.getProgramAccounts(PROGRAM_ID, {
+      filters: discriminator ? [{ memcmp: discriminator }] : [],
+    })
+
+    const results = []
+    for (const { pubkey, account } of raw) {
+      try {
+        const decoded = program.coder.accounts.decode('loanAccount', account.data)
+        results.push({ publicKey: pubkey, account: decoded, decodeError: null })
+      } catch (err) {
+        console.warn('fetchAllLoans — skipped undecodable account:', pubkey.toString(), err.message)
+      }
+    }
+    return results
+  }, [program, connection])
+
+  const requestLoan = useCallback(async ({ amount, purpose, repaymentWeeks, lenderPubkey }) => {
+    if (!program || !walletPublicKey) throw new Error('Wallet not connected')
+
+    const farmerPDA = getFarmerPDA(walletPublicKey)
+    const loanPDA = getLoanPDA(walletPublicKey)
 
     const tx = await program.methods
       .requestLoan(
@@ -78,7 +232,8 @@ export function useAimProgram() {
       .accounts({
         loan: loanPDA,
         farmer: farmerPDA,
-        owner: wallet.publicKey,
+        lender: lenderPubkey,
+        owner: walletPublicKey,
         systemProgram: web3.SystemProgram.programId,
       })
       .rpc({
@@ -90,20 +245,20 @@ export function useAimProgram() {
       signature: tx,
       loanPublicKey: loanPDA.toString(),
     }
-  }
+  }, [program, walletPublicKey])
 
-  const repayLoan = async () => {
-    if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
+  const repayLoan = useCallback(async () => {
+    if (!program || !walletPublicKey) throw new Error('Wallet not connected')
 
-    const farmerPDA = getFarmerPDA(wallet.publicKey)
-    const loanPDA = getLoanPDA(wallet.publicKey)
+    const farmerPDA = getFarmerPDA(walletPublicKey)
+    const loanPDA = getLoanPDA(walletPublicKey)
 
     const tx = await program.methods
       .repayLoan()
       .accounts({
         loan: loanPDA,
         farmer: farmerPDA,
-        owner: wallet.publicKey,
+        owner: walletPublicKey,
       })
       .rpc({
         skipPreflight: false,
@@ -111,42 +266,46 @@ export function useAimProgram() {
       })
 
     return { signature: tx }
-  }
+  }, [program, walletPublicKey])
 
-  const fetchFarmer = async () => {
-    if (!program || !wallet.publicKey) return null
-    const farmerPDA = getFarmerPDA(wallet.publicKey)
+  const fetchFarmer = useCallback(async () => {
+    if (!program || !walletPublicKey) return null
+    const farmerPDA = getFarmerPDA(walletPublicKey)
     try {
       return await program.account.farmerAccount.fetch(farmerPDA)
     } catch {
       return null
     }
-  }
+  }, [program, walletPublicKey])
 
-  const closeLoan = async () => {
-    if (!program || !wallet.publicKey) throw new Error('Wallet not connected')
-    const loanPDA = getLoanPDA(wallet.publicKey)
+  const closeLoan = useCallback(async () => {
+    if (!program || !walletPublicKey) throw new Error('Wallet not connected')
+    const loanPDA = getLoanPDA(walletPublicKey)
     const tx = await program.methods
       .closeLoan()
       .accounts({
         loan: loanPDA,
-        owner: wallet.publicKey,
+        owner: walletPublicKey,
       })
       .rpc()
     return { signature: tx }
-  }
+  }, [program, walletPublicKey])
 
-  const fetchLoan = async () => {
-    if (!program || !wallet.publicKey) return null
-    const loanPDA = getLoanPDA(wallet.publicKey)
+  const fetchLoan = useCallback(async () => {
+    if (!program || !walletPublicKey) return null
+    const loanPDA = getLoanPDA(walletPublicKey)
     try {
       return await program.account.loanAccount.fetch(loanPDA)
     } catch {
       return null
     }
-  }
+  }, [program, walletPublicKey])
 
-  return { program, createFarmerID, requestLoan, repayLoan, closeLoan, fetchFarmer, fetchLoan }
+  return {
+    program, createFarmerID, registerLender, approveLender,
+    fetchLender, fetchAllLenders, fetchAllFarmers, fetchAllLoans,
+    requestLoan, repayLoan, closeLoan, fetchFarmer, fetchLoan,
+  }
 }
 
 export function parseAnchorError(err) {
@@ -175,6 +334,18 @@ export function parseAnchorError(err) {
 
   if (msg.includes('simulation failed') || msg.includes('Simulation failed'))
     return 'Transaction simulation failed. Check your wallet is on devnet and has enough SOL.'
+
+  if (msg.includes('AdminCannotRegister'))
+    return 'The admin wallet cannot register as a Farmer or Lender.'
+
+  if (msg.includes('WalletAlreadyHasRole'))
+    return 'This wallet is already registered with a different role on the protocol.'
+
+  if (msg.includes('LenderNotActive'))
+    return 'This lender has not yet been approved by the admin.'
+
+  if (msg.includes('Unauthorized'))
+    return 'Only the AIM Protocol admin wallet can perform this action.'
 
   return 'Transaction failed. Please try again.'
 }
