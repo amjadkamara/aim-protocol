@@ -2,24 +2,38 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { ExternalLink } from 'lucide-react'
 import WalletStatus from './WalletStatus'
 
-export default function Layout({ children }) {
+export default function Layout({ children, onNavigate = () => {} }) {
   return (
-    <div className="min-h-screen text-white flex flex-col relative bg-[#0a0f1e]">
-      {/* BACKGROUND MESH */}
-      <div className="fixed inset-0 -z-10 pointer-events-none">
-        <div className="absolute w-[800px] h-[800px] bg-green-500/10 rounded-full blur-[160px] top-[-300px] left-[-200px]" />
-        <div className="absolute w-[600px] h-[600px] bg-violet-500/10 rounded-full blur-[160px] bottom-[-200px] right-[-100px]" />
-      </div>
-
+    <div className="min-h-screen text-white flex flex-col bg-[#0a0f1e]">
       {/* NAVBAR */}
       <nav className="flex items-center justify-between px-6 md:px-10 py-4 border-b border-white/[0.08] sticky top-0 z-50 bg-[#0a0f1e]/80 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
+        <button onClick={() => onNavigate('home')} className="flex items-center gap-3">
           <img src="/aim-protocol-logo.png" className="w-8 h-8 rounded-lg" alt="AIM Protocol" />
           <span className="text-base font-semibold tracking-tight">AIM Protocol</span>
+        </button>
+
+        <div className="hidden md:flex items-center gap-7">
+          <button onClick={() => onNavigate('home')}
+            className="text-[13px] text-white/50 hover:text-white/80 transition">
+            Protocol
+          </button>
+          <button onClick={() => onNavigate('farmerid')}
+            className="text-[13px] text-white/50 hover:text-white/80 transition">
+            For farmers
+          </button>
+          <button onClick={() => onNavigate('lenderregistration')}
+            className="text-[13px] text-white/50 hover:text-white/80 transition">
+            For lenders
+          </button>
+          <a href="https://github.com/amjadkamara/aim-protocol#readme"
+            target="_blank" rel="noreferrer"
+            className="text-[13px] text-white/50 hover:text-white/80 transition">
+            Docs
+          </a>
         </div>
+
         <div className="flex items-center gap-3">
-          
-           <a href="https://github.com/amjadkamara/aim-protocol"
+          <a href="https://github.com/amjadkamara/aim-protocol"
             target="_blank"
             rel="noreferrer"
             className="text-white/30 hover:text-white/70 transition p-1.5"
@@ -43,24 +57,21 @@ export default function Layout({ children }) {
         <div className="max-w-5xl mx-auto w-full flex flex-col md:flex-row items-center justify-between gap-4 text-white/30 text-xs">
           <div className="flex items-center gap-2">
             <img src="/aim-protocol-logo.png" className="w-5 h-5 rounded opacity-50" alt="" />
-            <span>AIM Protocol — Agri · Identity · Microfinance</span>
+            <span>AIM Protocol — Aadios Systems (SL) Ltd, Freetown</span>
           </div>
           <div className="flex items-center gap-6">
-            <a href="https://github.com/amjadkamara/aim-protocol" target="_blank" rel="noreferrer"
-              className="hover:text-white/60 transition flex items-center gap-1">
-              <ExternalLink size={12} /> Frontend Repo
+            <a href="https://github.com/amjadkamara/aim-protocol#readme" target="_blank" rel="noreferrer"
+              className="hover:text-white/60 transition">
+              Docs
             </a>
-            <a href="https://github.com/amjadkamara/aim-program" target="_blank" rel="noreferrer"
-              className="hover:text-white/60 transition flex items-center gap-1">
-              <ExternalLink size={12} /> Smart Contract Repo
+            <a href="https://github.com/amjadkamara/aim-protocol" target="_blank" rel="noreferrer"
+              className="hover:text-white/60 transition">
+              GitHub
             </a>
             <a href="https://explorer.solana.com/address/AhHHJTu5vodDYE2yLNet2bE6jad9F3xSfbLQdUmykKqB?cluster=devnet" target="_blank" rel="noreferrer"
-              className="hover:text-white/60 transition flex items-center gap-1">
-              <ExternalLink size={12} /> Program ID
+              className="hover:text-white/60 transition">
+              Explorer
             </a>
-          </div>
-          <div className="text-white/20">
-            Solana Frontier Hackathon 2026 · Built from Sierra Leone 🇸🇱
           </div>
         </div>
       </footer>

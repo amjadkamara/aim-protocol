@@ -3,7 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
 import {
-  ShieldCheck, Coins, Sprout, ArrowRight, Wallet,
+  Coins, Sprout, ArrowRight, Wallet,
   UserCheck, CreditCard, LayoutDashboard, Search,
   MapPin, Loader2, Store, Building2
 } from 'lucide-react'
@@ -19,12 +19,18 @@ import LoanMarketplace from './LoanMarketplace'
 import LenderRegistration from './LenderRegistration'
 import { useAimProgram } from './useAimProgram'
 
+// Must match ADMIN_PUBKEY in lib.rs and AdminDashboard.jsx
+const ADMIN_WALLETS = ['Cz3GvsRaBsuAHoRiJd5sV6ZTAkE8TsFJAyuYWEtV7Qu2']
+const PROGRAM_ID = 'AhHHJTu5vodDYE2yLNet2bE6jad9F3xSfbLQdUmykKqB'
+
 function Home({ onNavigate }) {
   const { connected, publicKey } = useWallet()
   const { fetchFarmer, fetchLender } = useAimProgram()
   const [farmer, setFarmer] = useState(null)
   const [lender, setLender] = useState(null)
-  const [loadingFarmer, setLoadingFarmer] = useState(false)
+  const [loadingFarmer, setLoadingFarmer] = useState(connected)
+
+  const isAdmin = connected && publicKey && ADMIN_WALLETS.includes(publicKey.toString())
 
   useEffect(() => {
     if (!connected || !publicKey) {
@@ -32,282 +38,296 @@ function Home({ onNavigate }) {
       setLender(null)
       return
     }
+    // Admin wallet is blocked at contract level from both roles —
+    // no need to fetch farmer/lender, it will always return null.
+    if (ADMIN_WALLETS.includes(publicKey.toString())) {
+      setFarmer(null)
+      setLender(null)
+      setLoadingFarmer(false)
+      return
+    }
     setLoadingFarmer(true)
-    fetchLender().then(lenderData => {
-      setLender(lenderData)
+    Promise.all([fetchLender(), fetchFarmer()]).then(([lenderData, farmerData]) => {
+      // lender takes priority if somehow both exist (shouldn't happen given
+      // on-chain mutual exclusivity, but resolve deterministically)
       if (lenderData) {
-        // Wallet is a lender — no need to also check farmer status
+        setLender(lenderData)
         setFarmer(null)
-        setLoadingFarmer(false)
-        return
-      }
-      fetchFarmer().then(farmerData => {
+      } else {
+        setLender(null)
         setFarmer(farmerData)
-        setLoadingFarmer(false)
-      })
+      }
+      setLoadingFarmer(false)
     })
   }, [connected, publicKey])
 
+  const showRoleChoice = connected && !loadingFarmer && !isAdmin && !lender && !farmer
+
   return (
-    <div className="w-full max-w-4xl px-6 md:px-10 flex flex-col gap-16">
+    <div className="w-full max-w-3xl px-6 md:px-10 flex flex-col gap-14">
 
       {/* ── HERO ── */}
-      <section className="flex flex-col items-center text-center py-16 gap-6 relative">
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-violet-500/20 via-violet-500/5 to-transparent rounded-3xl pointer-events-none" />
+      <section className="flex flex-col items-center text-center pt-14 pb-10 gap-5">
 
         {!connected && (
-          <div className="bg-green-400/10 text-green-400 text-xs md:text-sm px-4 py-1.5 rounded-full border border-green-400/30 tracking-wide">
-            Built on Solana • Africa 🌍
+          <div className="flex items-center gap-1.5 text-white/50 text-xs px-3 py-1.5 rounded-full border border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            Live on Solana devnet
           </div>
         )}
 
         {connected ? (
           <div className="flex flex-col items-center gap-2">
             {loadingFarmer ? (
-              <Loader2 size={24} className="animate-spin text-white/30" />
+              <Loader2 size={22} className="animate-spin text-white/30" />
+            ) : isAdmin ? (
+              <>
+                <div className="border border-white/15 text-white/60 text-xs px-3 py-1 rounded-full mb-1">
+                  Protocol admin
+                </div>
+                <h1 className="text-[28px] md:text-[32px] font-medium leading-snug">
+                  Welcome back, <span className="text-green-400">Admin</span>
+                </h1>
+                <p className="text-white/40 text-[14px] mt-1 max-w-md">
+                  Manage farmers, lenders, and protocol activity from the admin dashboard.
+                </p>
+              </>
             ) : lender ? (
               <>
-                <div className="bg-violet-400/10 text-violet-400 text-xs px-4 py-1.5 rounded-full border border-violet-400/30 tracking-wide mb-1">
-                  {lender.isActive ? 'Active Lender' : 'Lender — Pending Approval'}
+                <div className={`border text-xs px-3 py-1 rounded-full mb-1 ${
+                  lender.isActive
+                    ? 'border-green-400/30 text-green-400'
+                    : 'border-amber-400/30 text-amber-400'
+                }`}>
+                  {lender.isActive ? 'Active lender' : 'Lender — pending approval'}
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                  Welcome back,
+                <h1 className="text-[28px] md:text-[32px] font-medium leading-snug">
+                  Welcome back, <span className="text-green-400">{lender.name}</span>
                 </h1>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight text-violet-400">
-                  {lender.name}
-                </h1>
-                <p className="text-white/40 text-sm mt-1">
+                <p className="text-white/40 text-[14px] mt-1 max-w-md">
                   {lender.isActive
-                    ? 'Your lending profile is live on the Loan Marketplace.'
+                    ? 'Your lending profile is live on the loan marketplace.'
                     : 'Your registration is awaiting admin approval before you can deploy capital.'}
                 </p>
               </>
             ) : farmer ? (
               <>
-                <div className="bg-green-400/10 text-green-400 text-xs px-4 py-1.5 rounded-full border border-green-400/30 tracking-wide mb-1">
-                  Verified Farmer
+                <div className="border border-green-400/30 text-green-400 text-xs px-3 py-1 rounded-full mb-1">
+                  Verified farmer
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                  Welcome back,
+                <h1 className="text-[28px] md:text-[32px] font-medium leading-snug">
+                  Welcome back, <span className="text-green-400">{farmer.fullName}</span>
                 </h1>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight text-green-400">
-                  {farmer.fullName}
-                </h1>
-                <div className="flex items-center gap-3 mt-1 text-white/40 text-sm">
+                <div className="flex items-center gap-3 mt-1 text-white/40 text-[13px]">
                   <span className="flex items-center gap-1">
-                    <Sprout size={13} className="text-green-400/60" />
+                    <Sprout size={12} className="text-green-400/60" />
                     {farmer.cropType}
                   </span>
                   <span className="text-white/20">•</span>
                   <span className="flex items-center gap-1">
-                    <MapPin size={13} className="text-white/30" />
+                    <MapPin size={12} className="text-white/30" />
                     {farmer.district}
                   </span>
                 </div>
               </>
             ) : (
               <>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                  Welcome to
+                <h1 className="text-[28px] md:text-[32px] font-medium leading-snug">
+                  Welcome to <span className="text-green-400">AIM Protocol</span>
                 </h1>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight text-green-400">
-                  AIM Protocol
-                </h1>
-                <p className="text-white/40 text-sm mt-1">
-                  You don't have a Farmer ID yet. Create one to get started.
+                <p className="text-white/40 text-[14px] mt-1 max-w-md">
+                  You don't have a Farmer ID yet. Create one to get started, or register as a lender.
                 </p>
               </>
             )}
           </div>
         ) : (
           <>
-            <h1 className="text-4xl md:text-6xl font-bold leading-tight max-w-3xl">
-              Financial Access for
+            <h1 className="text-[28px] md:text-[34px] font-medium leading-snug max-w-lg">
+              Financial infrastructure for
               <br />
-              <span className="text-green-400">African Farmers</span>
+              <span className="text-green-400">African farmers</span>
             </h1>
-            <p className="text-white/60 max-w-lg text-base md:text-lg leading-relaxed">
-              Connect a wallet, mint a verifiable on-chain farmer ID,
-              and receive a crop-backed microloan.
+            <p className="text-white/50 max-w-md text-[15px] leading-relaxed">
+              On-chain identity and credit history power crop-backed lending —
+              no bank account or paperwork required.
             </p>
           </>
         )}
 
         {/* Action buttons */}
-        <div className="pt-2 w-full">
+        <div className="pt-1 w-full flex flex-col items-center gap-4">
           {connected ? (
-            <div className="flex flex-col w-full sm:flex-row sm:flex-wrap gap-3 justify-center">
-              {lender ? (
-                <>
-                  <button onClick={() => onNavigate('dashboard')}
-                    className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
-                    <LayoutDashboard size={16} /> My Dashboard
+            <>
+              {isAdmin && (
+                <div className="flex flex-wrap gap-2.5 justify-center">
+                  <button onClick={() => onNavigate('admin')}
+                    className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-5 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <LayoutDashboard size={15} /> Admin dashboard
                   </button>
                   <button onClick={() => onNavigate('marketplace')}
-                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <Store size={16} /> Marketplace
+                    className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition flex items-center gap-1.5">
+                    <Store size={15} /> Marketplace
                   </button>
-                </>
-              ) : farmer ? (
-                <>
+                  <button onClick={() => onNavigate('farmerprofile')}
+                    className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition flex items-center gap-1.5">
+                    <Search size={15} /> Lookup farmer
+                  </button>
+                </div>
+              )}
+
+              {lender && (
+                <div className="flex flex-wrap gap-2.5 justify-center">
                   <button onClick={() => onNavigate('dashboard')}
-                    className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
-                    <LayoutDashboard size={16} /> My Dashboard
+                    className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-5 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <LayoutDashboard size={15} /> My dashboard
+                  </button>
+                  <button onClick={() => onNavigate('marketplace')}
+                    className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition flex items-center gap-1.5">
+                    <Store size={15} /> Marketplace
+                  </button>
+                </div>
+              )}
+
+              {farmer && (
+                <div className="flex flex-wrap gap-2.5 justify-center">
+                  <button onClick={() => onNavigate('dashboard')}
+                    className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-5 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <LayoutDashboard size={15} /> My dashboard
                   </button>
                   <button onClick={() => onNavigate('microloan')}
-                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <Coins size={16} /> Request Loan
+                    className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition flex items-center gap-1.5">
+                    <Coins size={15} /> Request loan
                   </button>
                   <button onClick={() => onNavigate('repayeloan')}
-                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <ArrowRight size={16} /> Repay Loan
+                    className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition flex items-center gap-1.5">
+                    <ArrowRight size={15} /> Repay loan
                   </button>
                   <button onClick={() => onNavigate('marketplace')}
-                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <Store size={16} /> Marketplace
+                    className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition flex items-center gap-1.5">
+                    <Store size={15} /> Marketplace
                   </button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => onNavigate('dashboard')}
-                    className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white font-semibold px-8 py-3 rounded-xl flex items-center justify-center gap-2 transition">
-                    <LayoutDashboard size={16} /> My Dashboard
+                  <button onClick={() => onNavigate('farmerprofile')}
+                    className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition flex items-center gap-1.5">
+                    <Search size={15} /> Lookup farmer
                   </button>
-                  <button onClick={() => onNavigate('farmerid')}
-                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <ShieldCheck size={16} /> Create Farmer ID
-                  </button>
-                  <button onClick={() => onNavigate('marketplace')}
-                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <Store size={16} /> Marketplace
-                  </button>
-                  <button onClick={() => onNavigate('lenderregistration')}
-                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <Building2 size={16} /> Register as Lender
-                  </button>
-                </>
+                </div>
               )}
-              <button onClick={() => onNavigate('farmerprofile')}
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                <Search size={16} /> Lookup Farmer
-              </button>
-              <button onClick={() => onNavigate('admin')}
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 px-8 py-3 rounded-xl transition flex items-center justify-center gap-2">
-                <LayoutDashboard size={16} /> Admin
-              </button>
-            </div>
+
+              {showRoleChoice && (
+                <div className="w-full flex flex-col items-center gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+                    <button onClick={() => onNavigate('farmerid')}
+                      className="text-left border border-white/10 hover:bg-white/[0.04] rounded-xl p-5 flex flex-col gap-2.5 transition">
+                      <UserCheck size={18} className="text-white/50" />
+                      <div>
+                        <p className="text-[14px] font-medium mb-0.5">Create Farmer ID</p>
+                        <p className="text-white/45 text-[13px] leading-relaxed">
+                          Register your on-chain identity and request a crop-backed loan.
+                        </p>
+                      </div>
+                    </button>
+                    <button onClick={() => onNavigate('lenderregistration')}
+                      className="text-left border border-white/10 hover:bg-white/[0.04] rounded-xl p-5 flex flex-col gap-2.5 transition">
+                      <Building2 size={18} className="text-white/50" />
+                      <div>
+                        <p className="text-[14px] font-medium mb-0.5">Register as lender</p>
+                        <p className="text-white/45 text-[13px] leading-relaxed">
+                          Apply to deploy capital and issue loans, subject to admin approval.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-5 text-[13px]">
+                    <button onClick={() => onNavigate('marketplace')}
+                      className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
+                      <Store size={13} /> Marketplace
+                    </button>
+                    <button onClick={() => onNavigate('farmerprofile')}
+                      className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
+                      <Search size={13} /> Lookup farmer
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex gap-3">
-                <button onClick={() => onNavigate('marketplace')}
-                  className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl transition flex items-center gap-2 text-sm font-medium">
-                  <Store size={16} /> Browse Marketplace
-                </button>
-                <button onClick={() => onNavigate('lenderregistration')}
-                  className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl transition flex items-center gap-2 text-sm font-medium">
-                  <Building2 size={16} /> Register as Lender
-                </button>
-              </div>
-              <WalletMultiButton />
+            <div className="flex flex-wrap gap-2.5 justify-center">
+              <button onClick={() => onNavigate('farmerid')}
+                className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-5 py-2 rounded-lg transition">
+                I'm a farmer
+              </button>
+              <button onClick={() => onNavigate('lenderregistration')}
+                className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition">
+                I'm a lender
+              </button>
             </div>
           )}
-        </div>
 
-        {/* Stats bar */}
-        <div className="mt-6 w-full border border-white/[0.08] rounded-2xl bg-white/[0.03] px-6 py-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'NETWORK',        value: 'Solana Devnet',    color: 'text-green-400' },
-            { label: 'SMART CONTRACT', value: 'Anchor Framework', color: 'text-white/60' },
-            { label: 'BUILT IN',       value: 'Sierra Leone 🇸🇱', color: 'text-white/60' },
-            { label: 'HACKATHON',      value: 'Frontier 2026',    color: 'text-yellow-400' },
-          ].map((tag, i) => (
-            <div key={i} className="flex flex-col items-center gap-1 text-center">
-              <span className="text-white/30 text-[10px] uppercase tracking-widest">{tag.label}</span>
-              <span className={`text-sm font-medium ${tag.color}`}>{tag.value}</span>
+          {!connected && (
+            <div className="flex items-center gap-5 text-[13px]">
+              <button onClick={() => onNavigate('marketplace')}
+                className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
+                <Store size={13} /> Browse marketplace
+              </button>
+              <button onClick={() => onNavigate('farmerprofile')}
+                className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
+                <Search size={13} /> Lookup farmer
+              </button>
             </div>
-          ))}
+          )}
         </div>
       </section>
 
       {/* ── MARKETING SECTIONS — hidden when connected ── */}
       {!connected && (
         <>
-          <section style={{paddingTop: '30px', paddingBottom: '15px', borderTop: '1px solid rgba(255,255,255,0.07)'}}>
-            <div className="flex flex-col items-center text-center" style={{marginBottom: '32px'}}>
-              <h2 className="text-2xl md:text-3xl font-semibold">How It Works</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* How it works */}
+          <section className="pt-8 border-t border-white/[0.07]">
+            <p className="text-white/35 text-xs text-center uppercase tracking-widest mb-1.5">How it works</p>
+            <h2 className="text-xl md:text-[22px] font-medium text-center mb-7">Three steps, on-chain</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
-                { step: "1", color: "green",  icon: <Wallet size={20} />,     title: "Connect Wallet",   desc: "Your wallet becomes your on-chain identity." },
-                { step: "2", color: "blue",   icon: <UserCheck size={20} />,  title: "Create Farmer ID", desc: "Mint a verifiable farmer profile on Solana." },
-                { step: "3", color: "violet", icon: <CreditCard size={20} />, title: "Access Credit",    desc: "Request crop-backed microloans instantly." },
-              ].map((item, i) => {
-                const c = {
-                  green:  { ring: 'border-green-400',  numBg: 'bg-green-500/20',  text: 'text-green-400' },
-                  blue:   { ring: 'border-blue-400',   numBg: 'bg-blue-500/20',   text: 'text-blue-400' },
-                  violet: { ring: 'border-violet-400', numBg: 'bg-violet-500/20', text: 'text-violet-400' },
-                }[item.color]
-                return (
-                  <div key={i} className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 flex items-start gap-4 hover:bg-white/[0.07] transition">
-                    <div className={`shrink-0 w-12 h-12 rounded-full ${c.numBg} border ${c.ring} flex items-center justify-center text-lg font-bold ${c.text}`}>
-                      {item.step}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-semibold mb-1">{item.title}</h3>
-                      <p className="text-white/50 text-sm leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                )
-              })}
+                { icon: <Wallet size={19} />,     title: "Connect wallet",   desc: "Your wallet becomes your on-chain identity." },
+                { icon: <UserCheck size={19} />,  title: "Create Farmer ID", desc: "Mint a verifiable farmer profile on Solana." },
+                { icon: <CreditCard size={19} />, title: "Access credit",    desc: "Request crop-backed microloans instantly." },
+              ].map((item, i) => (
+                <div key={i} className="bg-white/[0.03] rounded-xl p-5">
+                  <div className="text-green-400 mb-3">{item.icon}</div>
+                  <p className="text-[14px] font-medium mb-1">{item.title}</p>
+                  <p className="text-white/45 text-[13px] leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
             </div>
           </section>
 
-          <section style={{paddingTop: '30px', paddingBottom: '0px', borderTop: '1px solid rgba(255,255,255,0.07)'}}>
-            <div className="flex flex-col items-center text-center" style={{marginBottom: '32px'}}>
-              <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Why AIM Protocol</p>
-              <h2 className="text-2xl md:text-3xl font-semibold">Built for the field</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { icon: <ShieldCheck size={22} />, accent: 'green',  title: "On-Chain Identity",  desc: "Permanent farmer identity secured on Solana. Yours forever." },
-                { icon: <Coins size={22} />,       accent: 'yellow', title: "Crop-Backed Loans",  desc: "Access capital backed by your agricultural output, no credit history needed." },
-                { icon: <Sprout size={22} />,      accent: 'blue',   title: "No Banks",           desc: "Fully decentralized. Just a wallet is enough to participate." },
-              ].map((item, i) => {
-                const a = {
-                  green:  { icon: 'text-green-400',  bg: 'bg-green-500/15',  border: 'border-green-500/20',  top: 'from-green-500' },
-                  yellow: { icon: 'text-yellow-400', bg: 'bg-yellow-500/15', border: 'border-yellow-500/20', top: 'from-yellow-500' },
-                  blue:   { icon: 'text-blue-400',   bg: 'bg-blue-500/15',   border: 'border-blue-500/20',   top: 'from-blue-500' },
-                }[item.accent]
-                return (
-                  <div key={i} className={`relative bg-white/[0.04] border ${a.border} rounded-2xl p-6 flex items-start gap-4 hover:bg-white/[0.07] transition`}>
-                    <div className={`absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r ${a.top} to-transparent opacity-50`} />
-                    <div className={`shrink-0 w-12 h-12 rounded-xl ${a.bg} flex items-center justify-center ${a.icon}`}>
-                      {item.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-semibold mb-1">{item.title}</h3>
-                      <p className="text-white/50 text-sm leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-
-          <section style={{paddingBottom: '96px'}}>
-            <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-white/[0.04] px-8 md:px-14 py-14 text-center">
-              <div className="absolute inset-0 -z-10 bg-gradient-to-br from-green-500/10 via-transparent to-violet-500/10 pointer-events-none" />
-              <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-green-400/40 to-transparent" />
-              <div className="mb-2 text-green-400 flex justify-center">
-                <Sprout size={28} />
+          {/* For farmers / For lenders split */}
+          <section className="pb-14">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="border border-white/10 rounded-xl p-6">
+                <Sprout size={20} className="text-white/50" />
+                <p className="text-[15px] font-medium mt-3 mb-1.5">For farmers</p>
+                <p className="text-white/45 text-[13px] mb-4 leading-relaxed">
+                  Open, permissionless registration. Connect a wallet, register your identity, and
+                  request a loan — no bank account or paperwork required.
+                </p>
+                <button onClick={() => onNavigate('farmerid')}
+                  className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-4 py-1.5 rounded-lg transition">
+                  Get started
+                </button>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold mb-3">
-                Start building your financial identity today
-              </h2>
-              <p className="text-white/50 text-sm md:text-base mb-8 w-full text-center leading-relaxed">
-                Join the next generation of decentralized agriculture finance.
-              </p>
-              <WalletMultiButton />
+              <div className="border border-white/10 rounded-xl p-6">
+                <Building2 size={20} className="text-white/50" />
+                <p className="text-[15px] font-medium mt-3 mb-1.5">For lenders</p>
+                <p className="text-white/45 text-[13px] mb-4 leading-relaxed">
+                  NGOs, cooperatives, and MFIs register terms and capital, subject to admin
+                  approval before appearing on the marketplace.
+                </p>
+                <button onClick={() => onNavigate('lenderregistration')}
+                  className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-4 py-1.5 rounded-lg transition">
+                  Apply as a lender
+                </button>
+              </div>
             </div>
           </section>
         </>
@@ -321,7 +341,7 @@ function App() {
   const [page, setPage] = useState('home')
 
   return (
-    <Layout>
+    <Layout onNavigate={setPage}>
       {page === 'home' && <Home onNavigate={setPage} />}
       {page === 'farmerid' && (
         <FarmerID
