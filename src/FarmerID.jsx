@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { ShieldCheck, Loader2, CheckCircle2, AlertCircle, Phone, Building2 } from 'lucide-react'
 import { useAimProgram, getFarmerPDA, parseAnchorError } from './useAimProgram'
+
+// Must match ADMIN_PUBKEY in lib.rs, App.jsx, and LenderRegistration.jsx
+const ADMIN_WALLETS = ['Cz3GvsRaBsuAHoRiJd5sV6ZTAkE8TsFJAyuYWEtV7Qu2']
 
 const CROPS = [
   // Staple food crops
@@ -72,11 +76,24 @@ export default function FarmerID({ onBack, onSuccess }) {
   const [existingLender, setExistingLender] = useState(null)
   const [roleChecking, setRoleChecking] = useState(true)
 
+  // Admin wallet should never land on the Farmer registration form — whether
+  // it was already connected when this page opened, or connects mid-flow via
+  // the wallet-required gate below. Redirect home the moment we detect it.
+  useEffect(() => {
+    if (publicKey && ADMIN_WALLETS.includes(publicKey.toString())) {
+      onBack()
+    }
+  }, [publicKey])
+
   // Check on load if this wallet already has a Farmer ID, or is registered as a Lender.
   // roleChecking stays true until this resolves, so the form never flashes before
   // we know whether this wallet is allowed to register as a Farmer.
   useEffect(() => {
     if (!publicKey) {
+      setRoleChecking(false)
+      return
+    }
+    if (ADMIN_WALLETS.includes(publicKey.toString())) {
       setRoleChecking(false)
       return
     }
@@ -183,6 +200,34 @@ export default function FarmerID({ onBack, onSuccess }) {
       <div className="flex flex-col items-center justify-center px-4 py-24 gap-4">
         <Loader2 size={28} className="animate-spin text-white/30" />
         <p className="text-white/40 text-sm">Checking wallet status...</p>
+      </div>
+    )
+  }
+
+  // Admin wallet just connected — bounce home, don't render anything here
+  if (publicKey && ADMIN_WALLETS.includes(publicKey.toString())) {
+    return null
+  }
+
+  // No wallet connected yet — gate the form behind a connect screen, same
+  // pattern as LenderRegistration.jsx, instead of letting someone fill out
+  // the whole form only to find submit silently does nothing.
+  if (!publicKey) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col items-center justify-center px-4 text-center gap-6">
+        <ShieldCheck size={48} className="text-white/30" />
+        <h2 className="text-2xl font-semibold">Wallet required</h2>
+        <p className="text-white/50 max-w-md text-sm leading-relaxed">
+          Connect the wallet you'll use as your on-chain farming identity. This wallet becomes
+          your permanent Farmer ID.
+        </p>
+        <WalletMultiButton />
+        <button
+          onClick={onBack}
+          className="text-white/40 hover:text-white text-sm transition"
+        >
+          ← Back to home
+        </button>
       </div>
     )
   }

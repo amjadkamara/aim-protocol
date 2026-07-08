@@ -15,8 +15,9 @@ function LenderCard({ lender }) {
   const { account, publicKey } = lender
   const isActive = account.isActive
 
-  const maxLoanSol = account.maxLoanAmount
-    ? (account.maxLoanAmount.toNumber() / 1_000_000_000).toFixed(2)
+  // maxLoanLamports is the correct on-chain field name (renamed from maxLoanAmount in V2.3)
+  const maxLoanSol = account.maxLoanLamports
+    ? (Number(account.maxLoanLamports) / 1_000_000_000).toFixed(3)
     : '—'
 
   const apr = account.interestRateBps
@@ -115,7 +116,6 @@ export default function LoanMarketplace({ onBack }) {
       setLoading(true)
       setError(null)
       try {
-        // Read-only provider — no wallet required
         const dummyWallet = {
           publicKey: null,
           signTransaction: async (tx) => tx,
@@ -126,8 +126,6 @@ export default function LoanMarketplace({ onBack }) {
         })
         const program = new Program(idl, provider)
 
-        // This will work once LenderAccount exists in the IDL (V2.3 contract)
-        // Until then it gracefully falls to the empty state
         if (program.account.lenderAccount) {
           const all = await program.account.lenderAccount.all()
           setLenders(all)
@@ -135,7 +133,6 @@ export default function LoanMarketplace({ onBack }) {
           setLenders([])
         }
       } catch (e) {
-        // LenderAccount not in IDL yet — expected until V2.3 contract deploys
         console.log('LenderAccount not available yet:', e.message)
         setLenders([])
       } finally {
@@ -152,13 +149,11 @@ export default function LoanMarketplace({ onBack }) {
   return (
     <div className="w-full max-w-3xl px-6 md:px-10 flex flex-col gap-8 py-10">
 
-      {/* Back */}
       <button onClick={onBack}
         className="text-white/40 hover:text-white/80 transition flex items-center gap-1.5 text-sm self-start">
         <ArrowLeft size={16} /> Back
       </button>
 
-      {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[10px] text-white/30 uppercase tracking-widest">AIM Protocol</span>
@@ -171,7 +166,6 @@ export default function LoanMarketplace({ onBack }) {
         </p>
       </div>
 
-      {/* Stats strip */}
       {!loading && lenders.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-center">
@@ -189,7 +183,6 @@ export default function LoanMarketplace({ onBack }) {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/40">
           <Loader2 size={28} className="animate-spin" />
@@ -197,14 +190,12 @@ export default function LoanMarketplace({ onBack }) {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm flex items-center gap-2">
           <AlertCircle size={15} /> {error}
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && lenders.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 gap-4 text-center border border-white/[0.06] rounded-2xl bg-white/[0.02]">
           <div className="w-16 h-16 rounded-2xl bg-white/[0.05] flex items-center justify-center text-white/20">
@@ -217,16 +208,13 @@ export default function LoanMarketplace({ onBack }) {
               register your organisation.
             </p>
           </div>
-          
-          <a  href="mailto:aim@aadios.com"
-            className="text-violet-400 hover:text-violet-300 text-xs transition underline underline-offset-2"
-          >
+          <a href="mailto:aim@aadios.com"
+            className="text-violet-400 hover:text-violet-300 text-xs transition underline underline-offset-2">
             Register your organisation as a lender →
           </a>
         </div>
       )}
 
-      {/* Lender cards */}
       {!loading && lenders.length > 0 && (
         <div className="flex flex-col gap-4">
           {lenders.map((lender) => (
@@ -235,7 +223,6 @@ export default function LoanMarketplace({ onBack }) {
         </div>
       )}
 
-      {/* CTA — visible to all, nudges unconnected visitors */}
       <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] px-6 py-8 text-center flex flex-col items-center gap-4">
         <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-violet-500/5 pointer-events-none" />
         <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-green-400/30 to-transparent" />
@@ -254,9 +241,7 @@ export default function LoanMarketplace({ onBack }) {
           </>
         ) : (
           <>
-            <p className="text-sm font-semibold text-white/80">
-              Ready to apply for a loan?
-            </p>
+            <p className="text-sm font-semibold text-white/80">Ready to apply for a loan?</p>
             <p className="text-white/40 text-xs max-w-xs">
               Connect your wallet to register as a farmer and apply to any active lender.
             </p>

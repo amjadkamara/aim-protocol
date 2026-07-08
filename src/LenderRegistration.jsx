@@ -9,6 +9,9 @@ import {
 } from 'lucide-react'
 import { useAimProgram, getLenderPDA, parseAnchorError } from './useAimProgram'
 
+// Must match ADMIN_PUBKEY in lib.rs, App.jsx, and AdminDashboard.jsx
+const ADMIN_WALLETS = ['Cz3GvsRaBsuAHoRiJd5sV6ZTAkE8TsFJAyuYWEtV7Qu2']
+
 const ORG_TYPES = [
   'NGO (Non-Governmental Organisation)',
   'Cooperative / SACCO',
@@ -231,8 +234,22 @@ export default function LenderRegistration({ onBack }) {
     confirmCapital: false,
   })
 
+  // Admin wallet should never land here — whether it was already connected
+  // when this page was opened, or connects mid-flow via the "Wallet Required"
+  // screen below. Redirect home the moment we detect it, before any farmer/
+  // lender fetch runs.
+  useEffect(() => {
+    if (connected && publicKey && ADMIN_WALLETS.includes(publicKey.toString())) {
+      onBack()
+    }
+  }, [connected, publicKey])
+
   useEffect(() => {
     if (!program || !publicKey) {
+      setRoleChecking(false)
+      return
+    }
+    if (ADMIN_WALLETS.includes(publicKey.toString())) {
       setRoleChecking(false)
       return
     }
@@ -336,6 +353,11 @@ export default function LenderRegistration({ onBack }) {
         </button>
       </div>
     )
+  }
+
+  // ── Admin wallet just connected — bounce home, don't render anything here ──
+  if (publicKey && ADMIN_WALLETS.includes(publicKey.toString())) {
+    return null
   }
 
   // ── Still checking role — don't render anything else until we know ────────
