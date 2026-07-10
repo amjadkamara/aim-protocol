@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { Coins, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Coins, Loader2, CheckCircle2, AlertCircle, Building2, TrendingUp, CalendarClock } from 'lucide-react'
 import { useAimProgram, parseAnchorError } from './useAimProgram'
 
 const LOAN_PURPOSES = [
@@ -21,9 +21,25 @@ const LOAN_AMOUNTS = [
   { label: '0.5 SOL (~$50)', value: 0.5 },
 ]
 
+const REPAYMENT_WEEKS = [2, 4, 8, 12]
+
+function StatusBadge({ color, children }) {
+  const colors = {
+    green: 'border-green-400/30 text-green-400',
+    amber: 'border-amber-400/30 text-amber-400',
+    red: 'border-red-400/30 text-red-400',
+    neutral: 'border-white/15 text-white/40',
+  }
+  return (
+    <span className={`text-xs font-medium px-3 py-1 rounded-full border ${colors[color]}`}>
+      {children}
+    </span>
+  )
+}
+
 export default function Microloan({ onBack, onViewLoan }) {
   const { publicKey } = useWallet()
-  const { requestLoan, fetchFarmer, fetchLoan } = useAimProgram()
+  const { requestLoan, fetchFarmer, fetchLoan, fetchAllLenders } = useAimProgram()
 
   const [form, setForm] = useState({
     purpose: '',
@@ -36,13 +52,16 @@ export default function Microloan({ onBack, onViewLoan }) {
   const [hasFarmerID, setHasFarmerID] = useState(false)
   const [hasActiveLoan, setHasActiveLoan] = useState(false)
   const [checking, setChecking] = useState(true)
+  const [lenders, setLenders] = useState([])
+  const [selectedLender, setSelectedLender] = useState(null)
 
   useEffect(() => {
     if (!publicKey) return
     setChecking(true)
-    Promise.all([fetchFarmer(), fetchLoan()]).then(([farmer, loan]) => {
+    Promise.all([fetchFarmer(), fetchLoan(), fetchAllLenders()]).then(([farmer, loan, allLenders]) => {
       setHasFarmerID(!!farmer)
       setHasActiveLoan(!!loan && !loan.isRepaid)
+      setLenders(allLenders.filter(l => l.account.isActive))
       setChecking(false)
     })
   }, [publicKey])
@@ -51,7 +70,30 @@ export default function Microloan({ onBack, onViewLoan }) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const isValid = form.purpose && form.amount && hasFarmerID && !hasActiveLoan
+  const selectLender = (lender) => {
+    setSelectedLender(lender)
+    // Reset amount/duration if they no longer fit this lender's declared limits
+    setForm(f => {
+      const maxLoanSol = lender.account.maxLoanLamports.toNumber() / 1_000_000_000
+      const stillValidAmount = f.amount && parseFloat(f.amount) <= maxLoanSol
+      const stillValidWeeks = f.repaymentWeeks && parseInt(f.repaymentWeeks) <= lender.account.maxDurationWeeks
+      return {
+        ...f,
+        amount: stillValidAmount ? f.amount : '',
+        repaymentWeeks: stillValidWeeks ? f.repaymentWeeks : '4',
+      }
+    })
+  }
+
+  const availableAmounts = selectedLender
+    ? LOAN_AMOUNTS.filter(l => l.value <= selectedLender.account.maxLoanLamports.toNumber() / 1_000_000_000)
+    : []
+
+  const availableWeeks = selectedLender
+    ? REPAYMENT_WEEKS.filter(w => w <= selectedLender.account.maxDurationWeeks)
+    : []
+
+  const isValid = selectedLender && form.purpose && form.amount && hasFarmerID && !hasActiveLoan
 
   const handleSubmit = async () => {
     if (!publicKey || !isValid) return
@@ -65,6 +107,7 @@ export default function Microloan({ onBack, onViewLoan }) {
         amount: lamports,
         purpose: form.purpose,
         repaymentWeeks: parseInt(form.repaymentWeeks),
+        lenderPubkey: selectedLender.publicKey,
       })
 
       setTxSignature(result.signature)
@@ -79,40 +122,39 @@ export default function Microloan({ onBack, onViewLoan }) {
     const selectedAmount = LOAN_AMOUNTS.find(l => l.value === parseFloat(form.amount))
     return (
       <div className="flex flex-col items-center justify-center px-4 py-16 text-center gap-6">
-        <CheckCircle2 size={64} className="text-yellow-400" />
-        <h2 className="text-3xl font-bold">Loan Approved!</h2>
+        <CheckCircle2 size={64} className="text-green-400" />
+        <h2 className="text-3xl font-bold">Loan approved</h2>
         <p className="text-white/60 max-w-md">
           Your simulated crop-backed microloan has been disbursed on Solana devnet.
         </p>
 
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-w-md w-full text-left">
-          <p className="text-white/40 text-xs mb-1">LOAN AMOUNT</p>
-          <p className="font-semibold text-yellow-400 text-xl mb-3">{selectedAmount?.label}</p>
-          <p className="text-white/40 text-xs mb-1">PURPOSE</p>
+          <p className="text-white/40 text-xs mb-1">Lender</p>
+          <p className="font-semibold mb-3">{selectedLender?.account.name}</p>
+          <p className="text-white/40 text-xs mb-1">Loan amount</p>
+          <p className="font-semibold text-xl mb-3">{selectedAmount?.label}</p>
+          <p className="text-white/40 text-xs mb-1">Purpose</p>
           <p className="font-semibold mb-3">{form.purpose}</p>
-          <p className="text-white/40 text-xs mb-1">REPAYMENT PERIOD</p>
+          <p className="text-white/40 text-xs mb-1">Repayment period</p>
           <p className="font-semibold">{form.repaymentWeeks} weeks</p>
           <div className="mt-4 pt-4 border-t border-white/10">
-            <p className="text-white/40 text-xs mb-1">STATUS</p>
-            <span className="bg-green-400/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full border border-green-400/30">
-              ✓ DISBURSED ON-CHAIN
-            </span>
+            <p className="text-white/40 text-xs mb-1">Status</p>
+            <StatusBadge color="green">Disbursed on-chain</StatusBadge>
           </div>
         </div>
 
-        
-         <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
+        <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-6 py-3 rounded-lg transition"
+          className="bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-3 rounded-lg transition"
         >
-          View Loan Transaction ↗
+          View loan transaction ↗
         </a>
         <button
           onClick={onViewLoan}
           className="bg-white/10 hover:bg-white/20 text-white font-semibold px-6 py-3 rounded-lg transition"
         >
-          View Loan Status & Repay →
+          View loan status & repay →
         </button>
         <button
           onClick={onBack}
@@ -131,8 +173,8 @@ export default function Microloan({ onBack, onViewLoan }) {
           ← Back
         </button>
         <div className="flex items-center gap-3 mb-2">
-          <Coins className="text-yellow-400" size={32} />
-          <h2 className="text-2xl font-bold">Request Microloan</h2>
+          <Coins className="text-green-400" size={28} />
+          <h2 className="text-2xl font-bold">Request microloan</h2>
         </div>
         <p className="text-white/50 text-sm mb-8">
           Request a simulated crop-backed microloan disbursed directly to your wallet on Solana.
@@ -146,88 +188,145 @@ export default function Microloan({ onBack, onViewLoan }) {
         )}
 
         {!checking && !hasFarmerID && (
-          <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
+          <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-400/10 border border-amber-400/20 rounded-lg px-4 py-3 mb-4">
             <AlertCircle size={16} />
             You must create a Farmer ID before requesting a loan. Please go back and register first.
           </div>
         )}
 
         {!checking && hasFarmerID && hasActiveLoan && (
-          <div className="flex flex-col gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
+          <div className="flex flex-col gap-2 text-amber-400 text-sm bg-amber-400/10 border border-amber-400/20 rounded-lg px-4 py-3 mb-4">
             <div className="flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" />
               <span>You already have an active loan. Repay it before requesting a new one.</span>
             </div>
             <button
               onClick={onViewLoan}
-              className="text-yellow-400 underline text-xs text-left font-semibold"
+              className="text-amber-400 underline text-xs text-left font-semibold"
             >
               View loan status & repay →
             </button>
           </div>
         )}
 
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">Loan Purpose</label>
-            <select
-              name="purpose"
-              value={form.purpose}
-              onChange={handleChange}
-              className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-400 transition"
-            >
-              <option value="">Select purpose</option>
-              {LOAN_PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
+        {!checking && hasFarmerID && !hasActiveLoan && (
+          <div className="flex flex-col gap-4">
 
-          <div>
-            <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">Loan Amount</label>
-            <select
-              name="amount"
-              value={form.amount}
-              onChange={handleChange}
-              className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-400 transition"
-            >
-              <option value="">Select amount</option>
-              {LOAN_AMOUNTS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-            </select>
-          </div>
+            {/* ── Lender selection ── */}
+            <div>
+              <label className="text-white/60 text-xs mb-2 block">Select a lender</label>
 
-          <div>
-            <label className="text-white/60 text-xs uppercase tracking-wide mb-1 block">Repayment Period (weeks)</label>
-            <select
-              name="repaymentWeeks"
-              value={form.repaymentWeeks}
-              onChange={handleChange}
-              className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-400 transition"
-            >
-              <option value="2">2 weeks</option>
-              <option value="4">4 weeks</option>
-              <option value="8">8 weeks</option>
-              <option value="12">12 weeks</option>
-            </select>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-3">
-              <AlertCircle size={16} />
-              {error}
+              {lenders.length === 0 ? (
+                <div className="border border-white/10 rounded-lg px-4 py-3 text-white/40 text-sm">
+                  No active lenders available right now. Check back soon, or browse the marketplace for details.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {lenders.map((l) => {
+                    const isSelected = selectedLender?.publicKey.toString() === l.publicKey.toString()
+                    const maxLoanSol = (l.account.maxLoanLamports.toNumber() / 1_000_000_000).toFixed(2)
+                    const apr = (l.account.interestRateBps / 100).toFixed(1)
+                    return (
+                      <button
+                        key={l.publicKey.toString()}
+                        type="button"
+                        onClick={() => selectLender(l)}
+                        className={`text-left rounded-lg p-4 border transition ${
+                          isSelected
+                            ? 'border-green-400/40 bg-green-400/[0.06]'
+                            : 'border-white/10 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <Building2 size={14} className="text-white/40" />
+                          <span className="font-semibold text-sm">{l.account.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-white/40 text-xs">
+                          <span className="flex items-center gap-1">
+                            <Coins size={11} /> Up to {maxLoanSol} SOL
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <TrendingUp size={11} /> {apr}% APR
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <CalendarClock size={11} /> Up to {l.account.maxDurationWeeks}w
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          )}
 
-          <button
-            onClick={handleSubmit}
-            disabled={!isValid || status === 'loading'}
-            className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition mt-2"
-          >
-            {status === 'loading' ? (
-              <><Loader2 size={18} className="animate-spin" /> Processing Loan...</>
-            ) : (
-              'Request Loan →'
+            <div>
+              <label className="text-white/60 text-xs mb-1 block">Loan purpose</label>
+              <select
+                name="purpose"
+                value={form.purpose}
+                onChange={handleChange}
+                disabled={!selectedLender}
+                className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <option value="">Select purpose</option>
+                {LOAN_PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-white/60 text-xs mb-1 block">Loan amount</label>
+              <select
+                name="amount"
+                value={form.amount}
+                onChange={handleChange}
+                disabled={!selectedLender}
+                className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {selectedLender ? 'Select amount' : 'Select a lender first'}
+                </option>
+                {availableAmounts.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+              </select>
+              {selectedLender && availableAmounts.length === 0 && (
+                <p className="text-amber-400/80 text-xs mt-1.5">
+                  This lender's max loan is below our smallest preset amount.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-white/60 text-xs mb-1 block">Repayment period (weeks)</label>
+              <select
+                name="repaymentWeeks"
+                value={form.repaymentWeeks}
+                onChange={handleChange}
+                disabled={!selectedLender}
+                className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {availableWeeks.map(w => <option key={w} value={w}>{w} weeks</option>)}
+              </select>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-3">
+                <AlertCircle size={16} />
+                {error}
+              </div>
             )}
-          </button>
-        </div>
+
+            <button
+              onClick={handleSubmit}
+              disabled={!isValid || status === 'loading'}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition mt-2"
+            >
+              {status === 'loading' ? (
+                <><Loader2 size={18} className="animate-spin" /> Processing loan...</>
+              ) : (
+                'Request loan →'
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
