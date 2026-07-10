@@ -27,6 +27,20 @@ function getDaysInfo(loan) {
   return { diffDays, overdue: Date.now() > deadline, deadline }
 }
 
+function StatusBadge({ color, children }) {
+  const colors = {
+    green: 'border-green-400/30 text-green-400',
+    amber: 'border-amber-400/30 text-amber-400',
+    red: 'border-red-400/30 text-red-400',
+    neutral: 'border-white/15 text-white/40',
+  }
+  return (
+    <span className={`text-xs font-medium px-3 py-1 rounded-full border ${colors[color]}`}>
+      {children}
+    </span>
+  )
+}
+
 export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHistory, onMarketplace }) {
   const { publicKey } = useWallet()
   const { fetchFarmer, fetchLoan, fetchLender, closeLoan } = useAimProgram()
@@ -39,19 +53,19 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
   useEffect(() => {
     if (!publicKey) return
     setLoading(true)
-    fetchLender().then((lenderData) => {
+    Promise.all([fetchLender(), fetchFarmer(), fetchLoan()]).then(([lenderData, farmerData, loanData]) => {
+      // lender takes priority if somehow both exist (shouldn't happen given
+      // on-chain mutual exclusivity, but resolve deterministically)
       if (lenderData) {
         setLender(lenderData)
         setFarmer(null)
         setLoan(null)
-        setLoading(false)
-        return
-      }
-      Promise.all([fetchFarmer(), fetchLoan()]).then(([farmerData, loanData]) => {
+      } else {
+        setLender(null)
         setFarmer(farmerData)
         setLoan(loanData)
-        setLoading(false)
-      })
+      }
+      setLoading(false)
     })
   }, [publicKey])
 
@@ -73,46 +87,42 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
             ← Back
           </button>
 
-          <h2 className="text-2xl font-bold mb-1">My Dashboard</h2>
+          <h2 className="text-2xl font-bold mb-1">My dashboard</h2>
           <p className="text-white/40 text-sm mb-8">Your lender profile on AIM Protocol.</p>
 
           <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 mb-6">
             <div className="flex items-center gap-2 mb-4">
-              <Building2 size={18} className="text-violet-400" />
-              <span className="text-violet-400 text-xs font-semibold uppercase tracking-widest">Lender Profile</span>
+              <Building2 size={18} className="text-white/50" />
+              <span className="text-white/50 text-xs font-semibold uppercase tracking-widest">Lender profile</span>
             </div>
 
             <h3 className="text-2xl font-bold mb-4">{lender.name}</h3>
 
             <div className="mb-4">
               {lender.isActive ? (
-                <span className="bg-green-400/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full border border-green-400/30">
-                  ● ACTIVE
-                </span>
+                <StatusBadge color="green">Active</StatusBadge>
               ) : (
-                <span className="bg-yellow-400/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full border border-yellow-400/30">
-                  ◌ PENDING APPROVAL
-                </span>
+                <StatusBadge color="amber">Pending approval</StatusBadge>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <p className="text-white/40 text-xs mb-1">MAX LOAN</p>
+                <p className="text-white/40 text-xs mb-1">Max loan</p>
                 <p className="font-semibold">
                   {(lender.maxLoanLamports.toNumber() / 1_000_000_000).toFixed(2)} SOL
                 </p>
               </div>
               <div>
-                <p className="text-white/40 text-xs mb-1">INTEREST RATE</p>
+                <p className="text-white/40 text-xs mb-1">Interest rate</p>
                 <p className="font-semibold">{(lender.interestRateBps / 100).toFixed(1)}% APR</p>
               </div>
               <div>
-                <p className="text-white/40 text-xs mb-1">MAX DURATION</p>
+                <p className="text-white/40 text-xs mb-1">Max duration</p>
                 <p className="font-semibold">{lender.maxDurationWeeks} weeks</p>
               </div>
               <div>
-                <p className="text-white/40 text-xs mb-1">CAPITAL BUDGET</p>
+                <p className="text-white/40 text-xs mb-1">Capital budget</p>
                 <p className="font-semibold">
                   {(lender.capitalBudgetLamports.toNumber() / 1_000_000_000).toFixed(2)} SOL
                 </p>
@@ -121,24 +131,24 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
 
             <div className="pt-4 border-t border-white/10">
               <p className="text-white/40 text-xs mb-1 flex items-center gap-1">
-                <MapPin size={11} /> LOCATION
+                <MapPin size={11} /> Location
               </p>
               <p className="font-semibold">{lender.city}, {lender.country}</p>
             </div>
           </div>
 
           {!lender.isActive && (
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-yellow-300 text-xs mb-6">
+            <div className="bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-white/50 text-xs mb-6">
               Your registration is awaiting admin approval. Once approved, your profile will
-              appear on the Loan Marketplace and you can begin deploying capital to farmers.
+              appear on the loan marketplace and you can begin deploying capital to farmers.
             </div>
           )}
 
           <button
             onClick={onMarketplace}
-            className="w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
           >
-            <Store size={18} /> View Loan Marketplace →
+            <Store size={18} /> View loan marketplace →
           </button>
         </div>
       </div>
@@ -149,7 +159,7 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
     return (
       <div className="flex flex-col items-center justify-center px-4 py-16 text-center gap-6">
         <AlertCircle size={64} className="text-white/20" />
-        <h2 className="text-2xl font-bold">No Farmer ID Found</h2>
+        <h2 className="text-2xl font-bold">No Farmer ID found</h2>
         <p className="text-white/50 max-w-sm">
           You need to create a Farmer ID before accessing your dashboard.
         </p>
@@ -177,14 +187,14 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
           ← Back
         </button>
 
-        <h2 className="text-2xl font-bold mb-1">My Dashboard</h2>
+        <h2 className="text-2xl font-bold mb-1">My dashboard</h2>
         <p className="text-white/40 text-sm mb-8">Your on-chain farming identity and loan status.</p>
 
         {/* ── Farmer Profile Card ── */}
         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 mb-4">
           <div className="flex items-center gap-2 mb-4">
-            <ShieldCheck size={18} className="text-green-400" />
-            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">Farmer Profile</span>
+            <ShieldCheck size={18} className="text-white/50" />
+            <span className="text-white/50 text-xs font-semibold uppercase tracking-widest">Farmer profile</span>
           </div>
 
           <h3 className="text-2xl font-bold mb-4">{farmer.fullName}</h3>
@@ -192,23 +202,23 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-white/40 text-xs mb-1 flex items-center gap-1">
-                <Sprout size={11} /> CROP TYPE
+                <Sprout size={11} /> Crop type
               </p>
               <p className="font-semibold">{farmer.cropType}</p>
             </div>
             <div>
               <p className="text-white/40 text-xs mb-1 flex items-center gap-1">
-                <MapPin size={11} /> DISTRICT
+                <MapPin size={11} /> District
               </p>
               <p className="font-semibold">{farmer.district}</p>
             </div>
             <div>
-              <p className="text-white/40 text-xs mb-1">FARM SIZE</p>
+              <p className="text-white/40 text-xs mb-1">Farm size</p>
               <p className="font-semibold">{farmer.farmSize} acres</p>
             </div>
             <div>
               <p className="text-white/40 text-xs mb-1 flex items-center gap-1">
-                <Calendar size={11} /> MEMBER SINCE
+                <Calendar size={11} /> Member since
               </p>
               <p className="font-semibold">{memberSince}</p>
             </div>
@@ -216,7 +226,7 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
 
           <div className="pt-4 border-t border-white/10">
             <p className="text-white/40 text-xs mb-1 flex items-center gap-1">
-              <Hash size={11} /> FARMER ID (PDA)
+              <Hash size={11} /> Farmer ID (PDA)
             </p>
             <p className="font-mono text-xs text-white/40 break-all">{farmerPDA}</p>
           </div>
@@ -225,23 +235,21 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
         {/* ── Loan Status Card ── */}
         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
-            <Coins size={18} className="text-yellow-400" />
-            <span className="text-yellow-400 text-xs font-semibold uppercase tracking-widest">Loan Status</span>
+            <Coins size={18} className="text-white/50" />
+            <span className="text-white/50 text-xs font-semibold uppercase tracking-widest">Loan status</span>
           </div>
 
           {!loan && (
             <div className="flex flex-col items-center text-center py-4 gap-3">
               <p className="text-white/50 text-sm">No active loan. Your account is ready to borrow.</p>
-              <span className="bg-white/10 text-white/40 text-xs font-semibold px-3 py-1 rounded-full border border-white/10">
-                ○ NO LOAN
-              </span>
+              <StatusBadge color="neutral">No loan</StatusBadge>
             </div>
           )}
 
           {loan && (
             <>
               {loanStatus === 'active' && (
-                <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-4 py-3 mb-4">
+                <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-400/10 border border-amber-400/20 rounded-lg px-4 py-3 mb-4">
                   <Clock size={15} />
                   {daysInfo.diffDays} day{daysInfo.diffDays !== 1 ? 's' : ''} remaining until repayment deadline.
                 </div>
@@ -261,38 +269,26 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-white/40 text-xs mb-1">AMOUNT</p>
-                  <p className="font-semibold text-yellow-400 text-xl">{solAmount} SOL</p>
+                  <p className="text-white/40 text-xs mb-1">Amount</p>
+                  <p className="font-semibold text-xl">{solAmount} SOL</p>
                 </div>
                 <div>
-                  <p className="text-white/40 text-xs mb-1">STATUS</p>
-                  {loanStatus === 'active' && (
-                    <span className="bg-yellow-400/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full border border-yellow-400/30">
-                      ● ACTIVE
-                    </span>
-                  )}
-                  {loanStatus === 'overdue' && (
-                    <span className="bg-red-400/20 text-red-400 text-xs font-semibold px-3 py-1 rounded-full border border-red-400/30">
-                      ⚠ OVERDUE
-                    </span>
-                  )}
-                  {loanStatus === 'repaid' && (
-                    <span className="bg-green-400/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full border border-green-400/30">
-                      ✓ REPAID
-                    </span>
-                  )}
+                  <p className="text-white/40 text-xs mb-1">Status</p>
+                  {loanStatus === 'active' && <StatusBadge color="amber">Active</StatusBadge>}
+                  {loanStatus === 'overdue' && <StatusBadge color="red">Overdue</StatusBadge>}
+                  {loanStatus === 'repaid' && <StatusBadge color="green">Repaid</StatusBadge>}
                 </div>
                 <div>
-                  <p className="text-white/40 text-xs mb-1">PURPOSE</p>
+                  <p className="text-white/40 text-xs mb-1">Purpose</p>
                   <p className="font-semibold text-sm">{loan.purpose}</p>
                 </div>
                 <div>
-                  <p className="text-white/40 text-xs mb-1">REPAYMENT PERIOD</p>
+                  <p className="text-white/40 text-xs mb-1">Repayment period</p>
                   <p className="font-semibold">{loan.repaymentWeeks} weeks</p>
                 </div>
                 {daysInfo && (
                   <div>
-                    <p className="text-white/40 text-xs mb-1">DEADLINE</p>
+                    <p className="text-white/40 text-xs mb-1">Deadline</p>
                     <p className="font-semibold text-sm">
                       {new Date(daysInfo.deadline).toLocaleDateString()}
                     </p>
@@ -323,24 +319,24 @@ export default function Dashboard({ onBack, onRequestLoan, onRepayLoan, onViewHi
           {(!loan || loanStatus === 'repaid') && (
             <button
               onClick={onRequestLoan}
-              className="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
+              className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
             >
-              <Coins size={18} /> Request a Loan →
+              <Coins size={18} /> Request a loan →
             </button>
           )}
           {loan && loanStatus !== 'repaid' && (
             <button
               onClick={onRepayLoan}
-              className="w-full bg-green-500 hover:bg-green-400 text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
+              className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
             >
-              <CheckCircle2 size={18} /> Repay Loan in Full →
+              <CheckCircle2 size={18} /> Repay loan in full →
             </button>
           )}
           <button
             onClick={onViewHistory}
             className="w-full bg-white/[0.04] hover:bg-white/10 border border-white/10 text-white/60 hover:text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition"
           >
-            <History size={18} /> View Loan History →
+            <History size={18} /> View loan history →
           </button>
         </div>
 
