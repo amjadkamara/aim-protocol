@@ -21,22 +21,29 @@ function lamportsToSol(lamports) {
   return (Number(lamports) / 1e9).toFixed(3)
 }
 
+// Matches the time-based calculation in Dashboard.jsx — LoanAccount stores
+// isRepaid (bool) + createdAt + repaymentWeeks, not a status enum.
 function getLoanStatus(loan) {
-  if (!loan?.status) return null
-  try { return Object.keys(loan.status)[0] || null } catch { return null }
+  if (!loan) return null
+  if (loan.isRepaid) return 'repaid'
+  const createdAt = loan.createdAt.toNumber() * 1000
+  const durationMs = loan.repaymentWeeks * 7 * 24 * 60 * 60 * 1000
+  const deadline = createdAt + durationMs
+  if (Date.now() > deadline) return 'overdue'
+  return 'active'
 }
 
-function StatusBadge({ status }) {
-  const key = getLoanStatus({ status })
+function StatusBadge({ loan }) {
+  const key = getLoanStatus(loan)
   if (!key) return null
   const map = {
-    active:  { label: 'ACTIVE',  cls: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-    overdue: { label: 'OVERDUE', cls: 'bg-red-500/20 text-red-300 border-red-500/30' },
-    repaid:  { label: 'REPAID',  cls: 'bg-green-500/20 text-green-300 border-green-500/30' },
+    active:  { label: 'Active',  cls: 'border-amber-400/30 text-amber-400' },
+    overdue: { label: 'Overdue', cls: 'border-red-400/30 text-red-400' },
+    repaid:  { label: 'Repaid',  cls: 'border-green-400/30 text-green-400' },
   }
-  const s = map[key] || { label: key.toUpperCase(), cls: 'bg-white/10 text-white/50 border-white/10' }
+  const s = map[key] || { label: key, cls: 'border-white/15 text-white/40' }
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border tracking-wider ${s.cls}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${s.cls}`}>
       {s.label}
     </span>
   )
@@ -45,37 +52,35 @@ function StatusBadge({ status }) {
 function LenderStatusBadge({ isActive }) {
   if (isActive) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border tracking-wider bg-green-500/20 text-green-300 border-green-500/30">
-        <ShieldCheck size={10} /> ACTIVE
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border border-green-400/30 text-green-400">
+        <ShieldCheck size={10} /> Active
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border tracking-wider bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-      <Clock size={10} /> PENDING
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border border-amber-400/30 text-amber-400">
+      <Clock size={10} /> Pending
     </span>
   )
 }
 
 function StatCard({ icon, label, value, sub, accent }) {
   const map = {
-    violet: { grad: 'from-violet-500/20', border: 'border-violet-500/20', text: 'text-violet-400' },
-    green:  { grad: 'from-green-500/20',  border: 'border-green-500/20',  text: 'text-green-400'  },
-    red:    { grad: 'from-red-500/20',    border: 'border-red-500/20',    text: 'text-red-400'    },
-    blue:   { grad: 'from-blue-500/20',   border: 'border-blue-500/20',   text: 'text-blue-400'   },
-    yellow: { grad: 'from-yellow-500/20', border: 'border-yellow-500/20', text: 'text-yellow-400' },
+    neutral: { text: 'text-white/40' },
+    green:   { text: 'text-green-400' },
+    red:     { text: 'text-red-400' },
+    amber:   { text: 'text-amber-400' },
   }
-  const c = map[accent] || map.violet
+  const c = map[accent] || map.neutral
   return (
-    <div className={`relative bg-white/[0.04] border ${c.border} rounded-2xl p-5 overflow-hidden`}>
-      <div className={`absolute inset-0 bg-gradient-to-br ${c.grad} to-transparent pointer-events-none`} />
-      <div className="relative flex items-start justify-between gap-3">
+    <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-white/40 text-xs uppercase tracking-widest mb-1">{label}</p>
           <p className="text-2xl font-bold text-white">{value}</p>
           {sub && <p className="text-white/40 text-xs mt-1">{sub}</p>}
         </div>
-        <div className={`shrink-0 w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center ${c.text}`}>
+        <div className={`shrink-0 w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center ${c.text}`}>
           {icon}
         </div>
       </div>
@@ -97,7 +102,7 @@ function LenderDetailModal({ lender, onClose, onApprove, approving, approveError
         </button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+          <div className="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center text-white/50">
             <Building2 size={18} />
           </div>
           <div>
@@ -108,7 +113,7 @@ function LenderDetailModal({ lender, onClose, onApprove, approving, approveError
 
         <div className="grid grid-cols-2 gap-4 text-sm mb-4">
           <div>
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Org Type</p>
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Org type</p>
             <p className="text-white/80">{a.orgType || '—'}</p>
           </div>
           <div>
@@ -116,39 +121,39 @@ function LenderDetailModal({ lender, onClose, onApprove, approving, approveError
             <p className="text-white/80">{a.city}, {a.country}</p>
           </div>
           <div>
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Contact Email</p>
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Contact email</p>
             <p className="text-white/80 break-all">{a.email || '—'}</p>
           </div>
           <div>
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Max Loan</p>
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Max loan</p>
             <p className="text-white/80">{lamportsToSol(a.maxLoanLamports)} SOL</p>
           </div>
           <div>
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Interest Rate</p>
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Interest rate</p>
             <p className="text-white/80">{(a.interestRateBps / 100).toFixed(2)}% APR</p>
           </div>
           <div>
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Max Duration</p>
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Max duration</p>
             <p className="text-white/80">{a.maxDurationWeeks} weeks</p>
           </div>
           <div>
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Min Credit Score</p>
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Min credit score</p>
             <p className="text-white/80">{Number(a.minCreditScore) === 0 ? 'All farmers' : a.minCreditScore.toString()}</p>
           </div>
           <div>
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Capital Budget</p>
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Capital budget</p>
             <p className="text-white/80">{lamportsToSol(a.capitalBudgetLamports)} SOL</p>
           </div>
         </div>
 
-        <div className="bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 mb-4">
-          <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Lender Wallet</p>
+        <div className="bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 mb-4">
+          <p className="text-white/30 text-xs uppercase tracking-widest mb-1">Lender wallet</p>
           <p className="text-white/60 text-xs font-mono break-all">{a.owner?.toString()}</p>
         </div>
 
         <a href={EXPLORER(lender.publicKey.toString())} target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-xs mb-5 transition">
-          <ExternalLink size={12} /> View Lender PDA on Solana Explorer
+          className="flex items-center gap-2 text-white/40 hover:text-green-400 text-xs mb-5 transition">
+          <ExternalLink size={12} /> View lender PDA on Solana Explorer
         </a>
 
         {approveError && (
@@ -162,18 +167,18 @@ function LenderDetailModal({ lender, onClose, onApprove, approving, approveError
             <CheckCircle2 size={16} /> This lender is approved and live on the marketplace.
           </div>
         ) : confirming ? (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-            <p className="text-yellow-200 text-sm mb-3">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+            <p className="text-amber-200 text-sm mb-3">
               Confirm: approve <strong>{a.name}</strong> as an active lender? They will immediately
-              appear on the public Loan Marketplace and become eligible to deploy capital to farmers.
+              appear on the public loan marketplace and become eligible to deploy capital to farmers.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => onApprove(lender.publicKey)}
                 disabled={approving}
-                className="flex-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+                className="flex-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-xl transition flex items-center justify-center gap-2">
                 {approving ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                {approving ? 'Approving…' : 'Yes, Approve'}
+                {approving ? 'Approving…' : 'Yes, approve'}
               </button>
               <button
                 onClick={() => setConfirming(false)}
@@ -186,8 +191,8 @@ function LenderDetailModal({ lender, onClose, onApprove, approving, approveError
         ) : (
           <button
             onClick={() => setConfirming(true)}
-            className="w-full bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium py-2.5 rounded-xl transition flex items-center justify-center gap-2">
-            <ShieldCheck size={14} /> Approve This Lender
+            className="w-full bg-green-600 hover:bg-green-500 text-white text-sm font-medium py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+            <ShieldCheck size={14} /> Approve this lender
           </button>
         )}
       </div>
@@ -332,8 +337,8 @@ export default function AdminDashboard({ onBack }) {
   function SortIcon({ col }) {
     if (sortKey !== col) return <ChevronUp size={12} className="opacity-20" />
     return sortDir === 'asc'
-      ? <ChevronUp size={12} className="text-violet-400" />
-      : <ChevronDown size={12} className="text-violet-400" />
+      ? <ChevronUp size={12} className="text-green-400" />
+      : <ChevronDown size={12} className="text-green-400" />
   }
 
   // ---- Lender stats / filtering / sorting ----
@@ -372,8 +377,8 @@ export default function AdminDashboard({ onBack }) {
   function LenderSortIcon({ col }) {
     if (lenderSortKey !== col) return <ChevronUp size={12} className="opacity-20" />
     return lenderSortDir === 'asc'
-      ? <ChevronUp size={12} className="text-violet-400" />
-      : <ChevronDown size={12} className="text-violet-400" />
+      ? <ChevronUp size={12} className="text-green-400" />
+      : <ChevronDown size={12} className="text-green-400" />
   }
 
   if (!publicKey) {
@@ -383,7 +388,7 @@ export default function AdminDashboard({ onBack }) {
           <ShieldAlert size={28} className="text-white/40" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold mb-2">Wallet Required</h2>
+          <h2 className="text-xl font-semibold mb-2">Wallet required</h2>
           <p className="text-white/50 text-sm">Connect your admin wallet to access the dashboard.</p>
         </div>
         <button onClick={onBack}
@@ -401,7 +406,7 @@ export default function AdminDashboard({ onBack }) {
           <ShieldAlert size={28} className="text-red-400" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <h2 className="text-xl font-semibold mb-2">Access denied</h2>
           <p className="text-white/50 text-sm">This wallet is not authorised to view the admin dashboard.</p>
           <p className="text-white/30 text-xs mt-2 font-mono">{publicKey.toString()}</p>
         </div>
@@ -424,7 +429,7 @@ export default function AdminDashboard({ onBack }) {
             <ArrowLeft size={16} />
           </button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Admin dashboard</h1>
             <p className="text-white/40 text-xs mt-0.5">
               All registered farmers and lenders — live from Solana devnet
             </p>
@@ -446,7 +451,7 @@ export default function AdminDashboard({ onBack }) {
           onClick={() => setActiveTab('farmers')}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition ${
             activeTab === 'farmers'
-              ? 'border-violet-500 text-white'
+              ? 'border-green-500 text-white'
               : 'border-transparent text-white/40 hover:text-white/70'
           }`}>
           <Users size={14} /> Farmers
@@ -455,12 +460,12 @@ export default function AdminDashboard({ onBack }) {
           onClick={() => setActiveTab('lenders')}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition ${
             activeTab === 'lenders'
-              ? 'border-violet-500 text-white'
+              ? 'border-green-500 text-white'
               : 'border-transparent text-white/40 hover:text-white/70'
           }`}>
           <Building2 size={14} /> Lenders
           {pendingLenders > 0 && (
-            <span className="bg-yellow-500/20 text-yellow-300 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="border border-amber-400/30 text-amber-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
               {pendingLenders} pending
             </span>
           )}
@@ -479,12 +484,12 @@ export default function AdminDashboard({ onBack }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard
               icon={<Users size={18} />}
-              label="Total Farmers" value={loading ? '—' : totalFarmers}
-              sub="registered on-chain" accent="violet" />
+              label="Total farmers" value={loading ? '—' : totalFarmers}
+              sub="registered on-chain" accent="neutral" />
             <StatCard
               icon={<TrendingUp size={18} />}
-              label="Active Loans" value={loading ? '—' : activeLoans}
-              sub={`${lamportsToSol(totalIssuedSol)} SOL issued`} accent="blue" />
+              label="Active loans" value={loading ? '—' : activeLoans}
+              sub={`${lamportsToSol(totalIssuedSol)} SOL issued`} accent="amber" />
             <StatCard
               icon={<AlertTriangle size={18} />}
               label="Overdue" value={loading ? '—' : overdueLoans}
@@ -504,7 +509,7 @@ export default function AdminDashboard({ onBack }) {
                 placeholder="Search by name, wallet, or crop…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/50 transition"
+                className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-green-400/50 transition"
               />
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -512,10 +517,10 @@ export default function AdminDashboard({ onBack }) {
                 <button key={s} onClick={() => setStatusFilter(s)}
                   className={`px-3 py-2 rounded-xl text-xs font-medium transition border ${
                     statusFilter === s
-                      ? 'bg-violet-600 border-violet-500 text-white'
+                      ? 'bg-green-600 border-green-500 text-white'
                       : 'bg-white/[0.04] border-white/10 text-white/50 hover:bg-white/[0.08]'
                   }`}>
-                  {s === 'none' ? 'No Loan' : s.charAt(0).toUpperCase() + s.slice(1)}
+                  {s === 'none' ? 'No loan' : s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}
             </div>
@@ -577,11 +582,11 @@ export default function AdminDashboard({ onBack }) {
                   </span>
                 </div>
                 <div className="flex items-center">
-                  {loan ? <StatusBadge status={loan.status} /> : <span className="text-white/20 text-xs">No loan</span>}
+                  {loan ? <StatusBadge loan={loan} /> : <span className="text-white/20 text-xs">No loan</span>}
                 </div>
                 <div className="flex items-center">
                   <a href={EXPLORER(farmerPDA.toString())} target="_blank" rel="noopener noreferrer"
-                    className="text-white/30 hover:text-violet-400 transition">
+                    className="text-white/30 hover:text-green-400 transition">
                     <ExternalLink size={14} />
                   </a>
                 </div>
@@ -609,16 +614,16 @@ export default function AdminDashboard({ onBack }) {
           <div className="grid grid-cols-3 gap-3">
             <StatCard
               icon={<Building2 size={18} />}
-              label="Total Lenders" value={lendersLoading ? '—' : totalLenders}
-              sub="registered on-chain" accent="violet" />
+              label="Total lenders" value={lendersLoading ? '—' : totalLenders}
+              sub="registered on-chain" accent="neutral" />
             <StatCard
               icon={<ShieldCheck size={18} />}
               label="Active" value={lendersLoading ? '—' : activeLenders}
               sub="approved & live" accent="green" />
             <StatCard
               icon={<Clock size={18} />}
-              label="Pending Approval" value={lendersLoading ? '—' : pendingLenders}
-              sub="awaiting admin review" accent="yellow" />
+              label="Pending approval" value={lendersLoading ? '—' : pendingLenders}
+              sub="awaiting admin review" accent="amber" />
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -629,7 +634,7 @@ export default function AdminDashboard({ onBack }) {
                 placeholder="Search by name, country, city, or wallet…"
                 value={lenderSearch}
                 onChange={e => setLenderSearch(e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/50 transition"
+                className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-green-400/50 transition"
               />
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -637,7 +642,7 @@ export default function AdminDashboard({ onBack }) {
                 <button key={s} onClick={() => setLenderStatusFilter(s)}
                   className={`px-3 py-2 rounded-xl text-xs font-medium transition border ${
                     lenderStatusFilter === s
-                      ? 'bg-violet-600 border-violet-500 text-white'
+                      ? 'bg-green-600 border-green-500 text-white'
                       : 'bg-white/[0.04] border-white/10 text-white/50 hover:bg-white/[0.08]'
                   }`}>
                   {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -651,7 +656,7 @@ export default function AdminDashboard({ onBack }) {
               {[
                 { key: 'name',    label: 'Organisation' },
                 { key: 'country', label: 'Location'     },
-                { key: 'maxLoan', label: 'Max Loan'     },
+                { key: 'maxLoan', label: 'Max loan'     },
                 { key: 'status',  label: 'Status'       },
               ].map(({ key, label }) => (
                 <button key={label} onClick={() => toggleLenderSort(key)}
@@ -683,7 +688,7 @@ export default function AdminDashboard({ onBack }) {
                 key={lender.publicKey.toString()}
                 onClick={() => { setSelectedLender(lender); setApproveError(null) }}
                 className={`w-full grid grid-cols-1 md:grid-cols-[2fr_1.5fr_1fr_1fr_40px] gap-2 md:gap-4 px-5 py-4 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition text-left ${
-                  !lender.account.isActive ? 'bg-yellow-500/[0.02]' : ''
+                  !lender.account.isActive ? 'bg-amber-500/[0.02]' : ''
                 }`}>
                 <div className="flex flex-col justify-center">
                   <span className="text-sm font-medium text-white">{lender.account.name || '—'}</span>
