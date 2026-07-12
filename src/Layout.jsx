@@ -1,10 +1,27 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-import { ExternalLink } from 'lucide-react'
 import WalletStatus from './WalletStatus'
 
 export default function Layout({ children, onNavigate = () => {} }) {
   return (
     <div className="min-h-screen text-white flex flex-col bg-[#0a0f1e]">
+      {/* Wallet-adapter ships its own button styling (defaults to violet) —
+          override here so it matches the single green accent used everywhere
+          else, instead of leaving a second, inconsistent brand color. */}
+      <style>{`
+        .wallet-adapter-button {
+          background-color: #16a34a !important;
+          color: #0a0f1e !important;
+          border-radius: 6px !important;
+          font-weight: 500 !important;
+        }
+        .wallet-adapter-button:not([disabled]):hover {
+          background-color: #22c55e !important;
+        }
+        .wallet-adapter-button-trigger {
+          background-color: #16a34a !important;
+        }
+      `}</style>
+
       {/* NAVBAR */}
       <nav className="flex items-center justify-between px-6 md:px-10 py-4 border-b border-white/[0.08] sticky top-0 z-50 bg-[#0a0f1e]/80 backdrop-blur-xl">
         <button onClick={() => onNavigate('home')} className="flex items-center gap-3">
@@ -33,13 +50,6 @@ export default function Layout({ children, onNavigate = () => {} }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <a href="https://github.com/amjadkamara/aim-protocol"
-            target="_blank"
-            rel="noreferrer"
-            className="text-white/30 hover:text-white/70 transition p-1.5"
-          >
-            <ExternalLink size={17} />
-          </a>
           <WalletMultiButton />
         </div>
       </nav>
@@ -63,10 +73,6 @@ export default function Layout({ children, onNavigate = () => {} }) {
             <a href="https://github.com/amjadkamara/aim-protocol#readme" target="_blank" rel="noreferrer"
               className="hover:text-white/60 transition">
               Docs
-            </a>
-            <a href="https://github.com/amjadkamara/aim-protocol" target="_blank" rel="noreferrer"
-              className="hover:text-white/60 transition">
-              GitHub
             </a>
             <a href="https://explorer.solana.com/address/AhHHJTu5vodDYE2yLNet2bE6jad9F3xSfbLQdUmykKqB?cluster=devnet" target="_blank" rel="noreferrer"
               className="hover:text-white/60 transition">

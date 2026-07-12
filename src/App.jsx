@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useWallet } from '@solana/wallet-adapter-react'
+import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
+import { Program, AnchorProvider, web3 } from '@coral-xyz/anchor'
 import {
-  Coins, Sprout, ArrowRight, Wallet,
-  UserCheck, CreditCard, LayoutDashboard, Search,
-  MapPin, Loader2, Store, Building2
+  Coins, Sprout, ArrowRight,
+  UserCheck, LayoutDashboard, Search,
+  MapPin, Loader2, Store, Building2, Copy, Check, ShieldCheck
 } from 'lucide-react'
 import Layout from './Layout'
 import FarmerID from './FarmerID'
@@ -18,10 +19,125 @@ import FarmerProfile from './FarmerProfile'
 import LoanMarketplace from './LoanMarketplace'
 import LenderRegistration from './LenderRegistration'
 import { useAimProgram } from './useAimProgram'
+import idl from './idl/aim_program.json'
 
 // Must match ADMIN_PUBKEY in lib.rs and AdminDashboard.jsx
 const ADMIN_WALLETS = ['Cz3GvsRaBsuAHoRiJd5sV6ZTAkE8TsFJAyuYWEtV7Qu2']
 const PROGRAM_ID = 'AhHHJTu5vodDYE2yLNet2bE6jad9F3xSfbLQdUmykKqB'
+
+// Read-only Anchor provider — same dummy-wallet pattern already used in
+// LoanMarketplace.jsx and FarmerProfile.jsx. Lets the Trust Strip show real
+// on-chain counts to a visitor who hasn't connected a wallet yet, which is
+// the whole point of it (a disconnected marketing page is exactly when this
+// needs to work).
+// Manually fetches + decodes accounts one at a time instead of using the
+// simpler program.account.X.all() — matches the defensive pattern already
+// established in fetchAllLenders/fetchAllFarmers (useAimProgram.js). Devnet
+// has accounts from earlier schema versions that no longer match the current
+// IDL; .all() aborts the entire batch if even one account fails to decode,
+// so a single legacy account would take down the whole Trust Strip.
+async function fetchAllAccountsSafe(program, connection, accountName) {
+  const discriminator = program.coder.accounts.memcmp(accountName)
+  const raw = await connection.getProgramAccounts(new web3.PublicKey(PROGRAM_ID), {
+    filters: discriminator ? [{ memcmp: discriminator }] : [],
+  })
+  const results = []
+  for (const { account } of raw) {
+    try {
+      results.push(program.coder.accounts.decode(accountName, account.data))
+    } catch (err) {
+      // Skip undecodable legacy account, same as fetchAllLenders/fetchAllFarmers
+    }
+  }
+  return results
+}
+
+function useTrustStripStats() {
+  const { connection } = useConnection()
+  const [stats, setStats] = useState({ lenders: null, farmers: null, error: false })
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const dummyWallet = {
+          publicKey: null,
+          signTransaction: async (tx) => tx,
+          signAllTransactions: async (txs) => txs,
+        }
+        const provider = new AnchorProvider(connection, dummyWallet, { commitment: 'confirmed' })
+        const program = new Program(idl, provider)
+        const [lendersData, farmersData] = await Promise.all([
+          fetchAllAccountsSafe(program, connection, 'lenderAccount'),
+          fetchAllAccountsSafe(program, connection, 'farmerAccount'),
+        ])
+        if (!cancelled) {
+          setStats({
+            lenders: lendersData.filter(l => l.isActive).length,
+            farmers: farmersData.length,
+            error: false,
+          })
+        }
+      } catch (e) {
+        console.log('Trust strip stats fetch failed:', e.message)
+        if (!cancelled) {
+          setStats({ lenders: null, farmers: null, error: true })
+        }
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [connection])
+
+  return stats
+}
+
+function TrustStrip() {
+  const stats = useTrustStripStats()
+  const [copied, setCopied] = useState(false)
+
+  const copyProgramId = () => {
+    navigator.clipboard.writeText(PROGRAM_ID)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <div className="flex flex-wrap items-start justify-center gap-x-14 gap-y-6">
+      <div className="text-center">
+        <p className="text-white/35 text-[11px] mb-1.5">Network</p>
+        <p className="text-white text-sm font-medium">Solana devnet</p>
+      </div>
+      <div className="text-center">
+        <p className="text-white/35 text-[11px] mb-1.5">Program ID</p>
+        <button onClick={copyProgramId} className="flex items-center justify-center gap-1.5 mx-auto">
+          <span className="text-green-400 text-sm font-medium font-mono">AhHH...KqB</span>
+          {copied ? <Check size={13} className="text-green-400" /> : <Copy size={13} className="text-white/35" />}
+        </button>
+      </div>
+      <div className="text-center">
+        <p className="text-white/35 text-[11px] mb-1.5">Lenders</p>
+        <p className="text-white text-sm font-medium">
+          {stats.error
+            ? <span className="text-white/30 font-normal">Unavailable</span>
+            : stats.lenders === null
+              ? <span className="text-white/30 italic font-normal">Loading…</span>
+              : `${stats.lenders} active`}
+        </p>
+      </div>
+      <div className="text-center">
+        <p className="text-white/35 text-[11px] mb-1.5">Farmers</p>
+        <p className="text-white text-sm font-medium">
+          {stats.error
+            ? <span className="text-white/30 font-normal">Unavailable</span>
+            : stats.farmers === null
+              ? <span className="text-white/30 italic font-normal">Loading…</span>
+              : `${stats.farmers} registered`}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function Home({ onNavigate }) {
   const { connected, publicKey } = useWallet()
@@ -67,7 +183,7 @@ function Home({ onNavigate }) {
     <div className="w-full max-w-3xl px-6 md:px-10 flex flex-col gap-14">
 
       {/* ── HERO ── */}
-      <section className="flex flex-col items-center text-center pt-14 pb-10 gap-5">
+      <section className="flex flex-col items-center text-center pt-14 pb-6 gap-5">
 
         {!connected && (
           <div className="flex items-center gap-1.5 text-white/50 text-xs px-3 py-1.5 rounded-full border border-white/10">
@@ -143,14 +259,18 @@ function Home({ onNavigate }) {
           </div>
         ) : (
           <>
-            <h1 className="text-[28px] md:text-[34px] font-medium leading-snug max-w-lg">
+            <h1 className="text-[44px] md:text-[56px] font-medium leading-[1.05] tracking-tight max-w-2xl">
               Financial infrastructure for
               <br />
               <span className="text-green-400">African farmers</span>
             </h1>
-            <p className="text-white/50 max-w-md text-[15px] leading-relaxed">
+            <p className="text-white/55 max-w-md text-[16px] leading-relaxed">
               On-chain identity and credit history power crop-backed lending —
               no bank account or paperwork required.
+            </p>
+            <p className="text-white/35 max-w-sm text-[12px] leading-relaxed">
+              Devnet build. Loan records are on-chain and permanent — no real
+              funds are held or transferred yet.
             </p>
           </>
         )}
@@ -218,8 +338,8 @@ function Home({ onNavigate }) {
                 <div className="w-full flex flex-col items-center gap-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
                     <button onClick={() => onNavigate('farmerid')}
-                      className="text-left border border-white/10 hover:bg-white/[0.04] rounded-xl p-5 flex flex-col gap-2.5 transition">
-                      <UserCheck size={18} className="text-white/50" />
+                      className="text-left border border-white/10 hover:bg-white/[0.04] rounded-lg p-5 flex flex-col gap-2.5 transition">
+                      <UserCheck size={18} className="text-white/40" />
                       <div>
                         <p className="text-[14px] font-medium mb-0.5">Create Farmer ID</p>
                         <p className="text-white/45 text-[13px] leading-relaxed">
@@ -228,8 +348,8 @@ function Home({ onNavigate }) {
                       </div>
                     </button>
                     <button onClick={() => onNavigate('lenderregistration')}
-                      className="text-left border border-white/10 hover:bg-white/[0.04] rounded-xl p-5 flex flex-col gap-2.5 transition">
-                      <Building2 size={18} className="text-white/50" />
+                      className="text-left border border-white/10 hover:bg-white/[0.04] rounded-lg p-5 flex flex-col gap-2.5 transition">
+                      <Building2 size={18} className="text-white/40" />
                       <div>
                         <p className="text-[14px] font-medium mb-0.5">Register as lender</p>
                         <p className="text-white/45 text-[13px] leading-relaxed">
@@ -252,82 +372,95 @@ function Home({ onNavigate }) {
               )}
             </>
           ) : (
-            <div className="flex flex-wrap gap-2.5 justify-center">
-              <button onClick={() => onNavigate('farmerid')}
-                className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-5 py-2 rounded-lg transition">
-                I'm a farmer
-              </button>
-              <button onClick={() => onNavigate('lenderregistration')}
-                className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-5 py-2 rounded-lg transition">
-                I'm a lender
-              </button>
-            </div>
-          )}
-
-          {!connected && (
-            <div className="flex items-center gap-5 text-[13px]">
-              <button onClick={() => onNavigate('marketplace')}
-                className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
-                <Store size={13} /> Browse marketplace
-              </button>
-              <button onClick={() => onNavigate('farmerprofile')}
-                className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
-                <Search size={13} /> Lookup farmer
-              </button>
+            <div className="w-full flex flex-col items-center gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+                <div className="text-left border border-white/10 rounded-lg p-6">
+                  <Sprout size={20} className="text-white/40" />
+                  <p className="text-[16px] font-medium mt-3.5 mb-1.5">For farmers</p>
+                  <p className="text-white/45 text-[13px] mb-4.5 leading-relaxed">
+                    Open registration. Connect a wallet and request a loan in one session.
+                  </p>
+                  <button onClick={() => onNavigate('farmerid')}
+                    className="w-full bg-green-600 hover:bg-green-500 text-white text-sm font-medium py-2 rounded-lg transition">
+                    Get started
+                  </button>
+                </div>
+                <div className="text-left border border-white/10 rounded-lg p-6">
+                  <Building2 size={20} className="text-white/40" />
+                  <p className="text-[16px] font-medium mt-3.5 mb-1.5">For lenders</p>
+                  <p className="text-white/45 text-[13px] mb-4.5 leading-relaxed">
+                    Register terms and capital, subject to admin approval.
+                  </p>
+                  <button onClick={() => onNavigate('lenderregistration')}
+                    className="w-full bg-transparent border border-white/20 hover:bg-white/[0.06] text-white text-sm font-medium py-2 rounded-lg transition">
+                    Apply as a lender
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-5 text-[13px]">
+                <button onClick={() => onNavigate('marketplace')}
+                  className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
+                  <Store size={13} /> Browse marketplace
+                </button>
+                <button onClick={() => onNavigate('farmerprofile')}
+                  className="text-white/40 hover:text-white/70 transition flex items-center gap-1.5">
+                  <Search size={13} /> Lookup farmer
+                </button>
+              </div>
             </div>
           )}
         </div>
       </section>
 
-      {/* ── MARKETING SECTIONS — hidden when connected ── */}
+      {/* ── TRUST STRIP + SECURITY — hidden when connected ── */}
       {!connected && (
         <>
-          {/* How it works */}
-          <section className="pt-8 border-t border-white/[0.07]">
-            <p className="text-white/35 text-xs text-center uppercase tracking-widest mb-1.5">How it works</p>
-            <h2 className="text-xl md:text-[22px] font-medium text-center mb-7">Three steps, on-chain</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {[
-                { icon: <Wallet size={19} />,     title: "Connect wallet",   desc: "Your wallet becomes your on-chain identity." },
-                { icon: <UserCheck size={19} />,  title: "Create Farmer ID", desc: "Mint a verifiable farmer profile on Solana." },
-                { icon: <CreditCard size={19} />, title: "Access credit",    desc: "Request crop-backed microloans instantly." },
-              ].map((item, i) => (
-                <div key={i} className="bg-white/[0.03] rounded-xl p-5">
-                  <div className="text-green-400 mb-3">{item.icon}</div>
-                  <p className="text-[14px] font-medium mb-1">{item.title}</p>
-                  <p className="text-white/45 text-[13px] leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
-            </div>
+          <section className="pt-10 border-t border-white/[0.07]">
+            <TrustStrip />
           </section>
 
-          {/* For farmers / For lenders split */}
-          <section className="pb-14">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="border border-white/10 rounded-xl p-6">
-                <Sprout size={20} className="text-white/50" />
-                <p className="text-[15px] font-medium mt-3 mb-1.5">For farmers</p>
-                <p className="text-white/45 text-[13px] mb-4 leading-relaxed">
-                  Open, permissionless registration. Connect a wallet, register your identity, and
-                  request a loan — no bank account or paperwork required.
-                </p>
-                <button onClick={() => onNavigate('farmerid')}
-                  className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-4 py-1.5 rounded-lg transition">
-                  Get started
-                </button>
-              </div>
-              <div className="border border-white/10 rounded-xl p-6">
-                <Building2 size={20} className="text-white/50" />
-                <p className="text-[15px] font-medium mt-3 mb-1.5">For lenders</p>
-                <p className="text-white/45 text-[13px] mb-4 leading-relaxed">
-                  NGOs, cooperatives, and MFIs register terms and capital, subject to admin
-                  approval before appearing on the marketplace.
-                </p>
-                <button onClick={() => onNavigate('lenderregistration')}
-                  className="bg-white/[0.06] hover:bg-white/[0.10] text-sm px-4 py-1.5 rounded-lg transition">
-                  Apply as a lender
-                </button>
-              </div>
+          <section className="pt-10 border-t border-white/[0.07] flex flex-col items-center">
+            <ShieldCheck size={20} className="text-white/40" />
+            <p className="text-[14px] font-medium mt-3 mb-1.5">Pre-audit, source available</p>
+            <p className="text-white/45 text-[12px] leading-relaxed max-w-md text-center">
+              One wallet, one identity — enforced on-chain. Contract source{' '}
+              <a href="https://github.com/amjadkamara/aim-program" target="_blank" rel="noreferrer"
+                className="text-white/60 hover:text-green-400 underline transition">
+                available on GitHub
+              </a>.
+            </p>
+          </section>
+
+          {/* How it works */}
+          <section className="pt-10 pb-24 border-t border-white/[0.07]">
+            <p className="text-white/35 text-xs text-center uppercase tracking-widest mb-2">How it works</p>
+            <h2 className="text-xl md:text-[24px] font-medium text-center mb-10">From wallet to working capital</h2>
+            <div className="max-w-xl mx-auto flex flex-col gap-8">
+              {[
+                {
+                  n: '01',
+                  title: 'Connect a wallet',
+                  desc: "Your Solana wallet address becomes your permanent on-chain identity — no separate account, password, or KYC form to fill out first.",
+                },
+                {
+                  n: '02',
+                  title: 'Register your Farmer ID',
+                  desc: "A short profile — crop, district, farm size — is minted as a verifiable on-chain record. It's yours permanently, and it's what lenders check before approving a loan.",
+                },
+                {
+                  n: '03',
+                  title: 'Request a crop-backed loan',
+                  desc: "Choose an approved lender, request within their published terms, and the loan is recorded on-chain — repayments build your credit history for next season.",
+                },
+              ].map((item) => (
+                <div key={item.n} className="flex gap-5">
+                  <span className="text-white/25 text-[26px] font-semibold font-mono leading-none shrink-0">{item.n}</span>
+                  <div>
+                    <p className="text-[16px] font-medium mb-1.5">{item.title}</p>
+                    <p className="text-white/50 text-[14px] leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         </>
