@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import '@solana/wallet-adapter-react-ui/styles.css'
@@ -432,43 +432,42 @@ function Home({ onNavigate }) {
           </section>
 
           {/* How it works */}
-{/* How it works */}
-<section className="pt-10 pb-20 border-t border-white/[0.07]">
-  <p className="text-white/35 text-xs text-center uppercase tracking-widest mb-2">How it works</p>
-  <h2 className="text-xl md:text-[24px] font-medium text-center mb-12">From wallet to working capital</h2>
-  <div className="max-w-3xl mx-auto flex flex-col md:flex-row items-start gap-10 md:gap-0">
-    {[
-      { n: '01', title: 'Connect a wallet', desc: 'Your wallet is your identity. No signup, no password.' },
-      { n: '02', title: 'Register your Farmer ID', desc: 'Crop, district, farm size — minted on-chain in one step.' },
-      { n: '03', title: 'Request a loan', desc: 'Pick a lender, borrow within their terms, build credit as you repay.' },
-    ].map((item, i, arr) => (
-      <>
-        <div key={item.n} className="flex-1 flex flex-col items-start gap-2.5">
-          <span className="text-green-400/70 text-[13px] font-mono tracking-widest">{item.n}</span>
-          <p className="text-[16px] font-medium">{item.title}</p>
-          <p className="text-white/50 text-[14px] leading-relaxed">{item.desc}</p>
-        </div>
-        {i < arr.length - 1 && (
-          <div className="hidden md:flex items-center justify-center px-3 pt-1.5 shrink-0">
-            <ArrowRight size={15} strokeWidth={1.5} className="text-white/15" />
-          </div>
-        )}
-      </>
-    ))}
-  </div>
-</section>
+          <section className="pt-10 pb-20 border-t border-white/[0.07]">
+            <p className="text-white/35 text-xs text-center uppercase tracking-widest mb-2">How it works</p>
+            <h2 className="text-xl md:text-[24px] font-medium text-center mb-12">From wallet to working capital</h2>
+            <div className="max-w-3xl mx-auto flex flex-col md:flex-row items-start gap-10 md:gap-0">
+              {[
+                { n: '01', title: 'Connect a wallet', desc: 'Your wallet is your identity. No signup, no password.' },
+                { n: '02', title: 'Register your Farmer ID', desc: 'Crop, district, farm size — minted on-chain in one step.' },
+                { n: '03', title: 'Request a loan', desc: 'Pick a lender, borrow within their terms, build credit as you repay.' },
+              ].map((item, i, arr) => (
+                <Fragment key={item.n}>
+                  <div className="flex-1 flex flex-col items-start gap-2.5">
+                    <span className="text-green-400/70 text-[13px] font-mono tracking-widest">{item.n}</span>
+                    <p className="text-[16px] font-medium">{item.title}</p>
+                    <p className="text-white/50 text-[14px] leading-relaxed">{item.desc}</p>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <div className="hidden md:flex items-center justify-center px-3 pt-1.5 shrink-0">
+                      <ArrowRight size={15} strokeWidth={1.5} className="text-white/15" />
+                    </div>
+                  )}
+                </Fragment>
+              ))}
+            </div>
+          </section>
 
-{/* Closing CTA */}
-<section className="pt-16 pb-24 border-t border-white/[0.07] flex flex-col items-center text-center gap-4">
-  <h3 className="text-[20px] md:text-[22px] font-medium">Ready to get started?</h3>
-  <p className="text-white/45 text-[14px] max-w-sm">
-    Connect a wallet and register your Farmer ID — it takes under a minute.
-  </p>
-  <button onClick={() => onNavigate('farmerid')}
-    className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition">
-    Get started
-  </button>
-</section>
+          {/* Closing CTA */}
+          <section className="pt-16 pb-24 border-t border-white/[0.07] flex flex-col items-center text-center gap-4">
+            <h3 className="text-[20px] md:text-[22px] font-medium">Ready to get started?</h3>
+            <p className="text-white/45 text-[14px] max-w-sm">
+              Connect a wallet and register your Farmer ID — it takes under a minute.
+            </p>
+            <button onClick={() => onNavigate('farmerid')}
+              className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition">
+              Get started
+            </button>
+          </section>
         </>
       )}
 
