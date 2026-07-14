@@ -13,15 +13,12 @@ const LOAN_PURPOSES = [
   'Transport to Market',
 ]
 
-const LOAN_AMOUNTS = [
-  { label: '0.01 SOL (~$1)', value: 0.01 },
-  { label: '0.05 SOL (~$5)', value: 0.05 },
-  { label: '0.1 SOL (~$10)', value: 0.1 },
-  { label: '0.2 SOL (~$20)', value: 0.2 },
-  { label: '0.5 SOL (~$50)', value: 0.5 },
-]
-
 const REPAYMENT_WEEKS = [2, 4, 8, 12]
+
+// Trims trailing zeros so 1.2500 -> "1.25", 0.0025 -> "0.0025", 5.0000 -> "5"
+function formatSol(amount) {
+  return parseFloat(amount.toFixed(6)).toString()
+}
 
 function StatusBadge({ color, children }) {
   const colors = {
@@ -70,12 +67,18 @@ export default function Microloan({ onBack, onViewLoan }) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
+  // Max loan this lender offers, in SOL — the single source of truth for
+  // both the amount input's bounds and the quick-select shortcut buttons.
+  const maxLoanSol = selectedLender
+    ? selectedLender.account.maxLoanLamports.toNumber() / 1_000_000_000
+    : 0
+
   const selectLender = (lender) => {
     setSelectedLender(lender)
     // Reset amount/duration if they no longer fit this lender's declared limits
     setForm(f => {
-      const maxLoanSol = lender.account.maxLoanLamports.toNumber() / 1_000_000_000
-      const stillValidAmount = f.amount && parseFloat(f.amount) <= maxLoanSol
+      const newMaxLoanSol = lender.account.maxLoanLamports.toNumber() / 1_000_000_000
+      const stillValidAmount = f.amount && parseFloat(f.amount) > 0 && parseFloat(f.amount) <= newMaxLoanSol
       const stillValidWeeks = f.repaymentWeeks && parseInt(f.repaymentWeeks) <= lender.account.maxDurationWeeks
       return {
         ...f,
@@ -85,15 +88,20 @@ export default function Microloan({ onBack, onViewLoan }) {
     })
   }
 
-  const availableAmounts = selectedLender
-    ? LOAN_AMOUNTS.filter(l => l.value <= selectedLender.account.maxLoanLamports.toNumber() / 1_000_000_000)
+  // Dynamic quick-select shortcuts scaled to this lender's actual max —
+  // replaces the old hardcoded 0.01/0.05/0.1/0.2/0.5 preset list, which
+  // was unreachable for any lender offering more than 0.5 SOL.
+  const quickAmounts = selectedLender
+    ? [0.25, 0.5, 1].map(fraction => formatSol(maxLoanSol * fraction))
     : []
 
   const availableWeeks = selectedLender
     ? REPAYMENT_WEEKS.filter(w => w <= selectedLender.account.maxDurationWeeks)
     : []
 
-  const isValid = selectedLender && form.purpose && form.amount && hasFarmerID && !hasActiveLoan
+  const parsedAmount = parseFloat(form.amount)
+  const isValidAmount = selectedLender && !isNaN(parsedAmount) && parsedAmount > 0 && parsedAmount <= maxLoanSol
+  const isValid = selectedLender && form.purpose && isValidAmount && hasFarmerID && !hasActiveLoan
 
   const handleSubmit = async () => {
     if (!publicKey || !isValid) return
@@ -119,7 +127,6 @@ export default function Microloan({ onBack, onViewLoan }) {
   }
 
   if (status === 'success') {
-    const selectedAmount = LOAN_AMOUNTS.find(l => l.value === parseFloat(form.amount))
     return (
       <div className="flex flex-col items-center justify-center px-4 py-16 text-center gap-6">
         <CheckCircle2 size={64} className="text-green-400" />
@@ -132,7 +139,7 @@ export default function Microloan({ onBack, onViewLoan }) {
           <p className="text-white/40 text-xs mb-1">Lender</p>
           <p className="font-semibold mb-3">{selectedLender?.account.name}</p>
           <p className="text-white/40 text-xs mb-1">Loan amount</p>
-          <p className="font-semibold text-xl mb-3">{selectedAmount?.label}</p>
+          <p className="font-semibold text-xl mb-3">{formatSol(parseFloat(form.amount))} SOL</p>
           <p className="text-white/40 text-xs mb-1">Purpose</p>
           <p className="font-semibold mb-3">{form.purpose}</p>
           <p className="text-white/40 text-xs mb-1">Repayment period</p>
@@ -224,7 +231,7 @@ export default function Microloan({ onBack, onViewLoan }) {
                 <div className="flex flex-col gap-2">
                   {lenders.map((l) => {
                     const isSelected = selectedLender?.publicKey.toString() === l.publicKey.toString()
-                    const maxLoanSol = (l.account.maxLoanLamports.toNumber() / 1_000_000_000).toFixed(2)
+                    const lMaxLoanSol = (l.account.maxLoanLamports.toNumber() / 1_000_000_000).toFixed(2)
                     const apr = (l.account.interestRateBps / 100).toFixed(1)
                     return (
                       <button
@@ -243,7 +250,7 @@ export default function Microloan({ onBack, onViewLoan }) {
                         </div>
                         <div className="flex items-center gap-4 text-white/40 text-xs">
                           <span className="flex items-center gap-1">
-                            <Coins size={11} /> Up to {maxLoanSol} SOL
+                            <Coins size={11} /> Up to {lMaxLoanSol} SOL
                           </span>
                           <span className="flex items-center gap-1">
                             <TrendingUp size={11} /> {apr}% APR
@@ -273,23 +280,47 @@ export default function Microloan({ onBack, onViewLoan }) {
               </select>
             </div>
 
+            {/* ── Loan amount — free-form, bounded to the selected lender's
+                 actual max_loan_lamports, with dynamic quick-select shortcuts.
+                 Replaces the old fixed 0.01–0.5 SOL preset list, which was
+                 unreachable for any lender offering more than 0.5 SOL. ── */}
             <div>
-              <label className="text-white/60 text-xs mb-1 block">Loan amount</label>
-              <select
+              <label className="text-white/60 text-xs mb-1 block">
+                Loan amount (SOL) {selectedLender && <span className="text-white/30">— up to {formatSol(maxLoanSol)} SOL</span>}
+              </label>
+              <input
+                type="number"
                 name="amount"
                 value={form.amount}
                 onChange={handleChange}
                 disabled={!selectedLender}
-                className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <option value="">
-                  {selectedLender ? 'Select amount' : 'Select a lender first'}
-                </option>
-                {availableAmounts.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-              </select>
-              {selectedLender && availableAmounts.length === 0 && (
-                <p className="text-amber-400/80 text-xs mt-1.5">
-                  This lender's max loan is below our smallest preset amount.
+                min="0"
+                max={maxLoanSol || undefined}
+                step="0.01"
+                placeholder={selectedLender ? `0.01 – ${formatSol(maxLoanSol)}` : 'Select a lender first'}
+                className="w-full bg-[#0a0f1e] border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/25 focus:outline-none focus:border-green-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              />
+
+              {selectedLender && (
+                <div className="flex gap-2 mt-2">
+                  {quickAmounts.map((amt, i) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, amount: amt }))}
+                      className="flex-1 text-xs font-medium py-1.5 rounded-md border border-white/10 text-white/50 hover:border-green-400/40 hover:text-green-400 transition"
+                    >
+                      {i === 2 ? 'Max' : `${[25, 50][i]}%`} · {amt} SOL
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {form.amount && !isValidAmount && (
+                <p className="text-red-400/80 text-xs mt-1.5">
+                  {parsedAmount <= 0
+                    ? 'Enter an amount greater than 0.'
+                    : `This lender's max loan is ${formatSol(maxLoanSol)} SOL.`}
                 </p>
               )}
             </div>
