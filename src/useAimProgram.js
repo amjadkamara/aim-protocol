@@ -247,17 +247,25 @@ export function useAimProgram() {
     }
   }, [program, walletPublicKey])
 
+  // repay_loan now restores capital to the issuing lender on-chain, so the
+  // lender account must be passed in. Read it off the loan itself —
+  // LoanAccount.lender already stores the LenderAccount PDA the loan was
+  // drawn from (set in request_loan) — one extra fetch, no new param needed
+  // from callers.
   const repayLoan = useCallback(async () => {
     if (!program || !walletPublicKey) throw new Error('Wallet not connected')
 
     const farmerPDA = getFarmerPDA(walletPublicKey)
     const loanPDA = getLoanPDA(walletPublicKey)
 
+    const loanAccount = await program.account.loanAccount.fetch(loanPDA)
+
     const tx = await program.methods
       .repayLoan()
       .accounts({
         loan: loanPDA,
         farmer: farmerPDA,
+        lender: loanAccount.lender,
         owner: walletPublicKey,
       })
       .rpc({
@@ -346,6 +354,12 @@ export function parseAnchorError(err) {
 
   if (msg.includes('Unauthorized'))
     return 'Only the AIM Protocol admin wallet can perform this action.'
+
+  if (msg.includes('InsufficientCapitalBudget'))
+    return "This loan amount exceeds the lender's remaining capital budget."
+
+  if (msg.includes('LenderMismatch'))
+    return 'Lender account mismatch. Please refresh and try again.'
 
   return 'Transaction failed. Please try again.'
 }

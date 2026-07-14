@@ -343,6 +343,13 @@
           }
         },
         {
+          "name": "lender",
+          "writable": true,
+          "relations": [
+            "loan"
+          ]
+        },
+        {
           "name": "owner",
           "writable": true,
           "signer": true,
@@ -411,7 +418,8 @@
           }
         },
         {
-          "name": "lender"
+          "name": "lender",
+          "writable": true
         },
         {
           "name": "owner",
@@ -518,6 +526,16 @@
       "code": 6006,
       "name": "WalletAlreadyHasRole",
       "msg": "This wallet already holds a different role on the protocol"
+    },
+    {
+      "code": 6007,
+      "name": "InsufficientCapitalBudget",
+      "msg": "This loan amount exceeds the lender's remaining capital budget"
+    },
+    {
+      "code": 6008,
+      "name": "LenderMismatch",
+      "msg": "The lender account provided does not match the loan's issuing lender"
     }
   ],
   "types": [

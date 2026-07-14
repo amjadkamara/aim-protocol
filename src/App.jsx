@@ -18,6 +18,7 @@ import AdminDashboard from './AdminDashboard'
 import FarmerProfile from './FarmerProfile'
 import LoanMarketplace from './LoanMarketplace'
 import LenderRegistration from './LenderRegistration'
+import LenderDashboard from './LenderDashboard'
 import { useAimProgram } from './useAimProgram'
 import idl from './idl/aim_program.json'
 
@@ -298,7 +299,7 @@ function Home({ onNavigate }) {
 
               {lender && (
                 <div className="flex flex-wrap gap-2.5 justify-center">
-                  <button onClick={() => onNavigate('dashboard')}
+                  <button onClick={() => onNavigate('lenderdashboard')}
                     className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-5 py-2 rounded-lg flex items-center gap-1.5 transition">
                     <LayoutDashboard size={15} /> My dashboard
                   </button>
@@ -522,6 +523,9 @@ function App() {
       )}
       {page === 'admin' && (
         <AdminDashboard onBack={() => setPage('home')} />
+      )}
+      {page === 'lenderdashboard' && (
+        <LenderDashboard onBack={() => setPage('home')} />
       )}
     </Layout>
   )
